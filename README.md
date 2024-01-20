@@ -1,8 +1,8 @@
 # Cloud Bucket Sync
 
-A simple way to sync files between remote machines and a cloud framework.
+A simple way to sync folders & files between a remote machine and a cloud provider's framework.
 
-Available for:
+Available for following cloud frameworks:
 
 - [Serverless](https://serverless.com/)
 
