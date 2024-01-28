@@ -3,17 +3,6 @@ import { ZodError } from 'zod'
 
 import { Storage } from './schemas/input'
 
-// can be removed if not needed
-export class InvalidOptionsError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'InvalidOptionsError'
-    this.message = message
-
-    console.error('InvalidOptionsError')
-  }
-}
-
 export class InvalidConfigError extends Error {
   constructor(message: string, issues: ZodError) {
     super(message)

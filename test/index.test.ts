@@ -43,7 +43,7 @@ describe('SyncCloudStorage ', () => {
       if (process.env.IS_OFFLINE === 'true' && customEndpoint !== undefined) {
         const configuredEndpoint =
           await syncCloudStorage.client?.config?.endpoint?.()
-        console.log('configuredEndpoint', configuredEndpoint)
+
         expect(customEndpoint.includes(`${configuredEndpoint?.hostname}`)).toBe(
           true
         )

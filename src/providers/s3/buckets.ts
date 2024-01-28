@@ -10,7 +10,6 @@ import {
   ListBucketsCommand,
   MetadataDirective,
   PutBucketAclCommand,
-  // PutBucketAclCommand,
   PutBucketTaggingCommand,
   S3Client,
   _Object,
@@ -169,7 +168,6 @@ export const syncMetadata = async (
             : file.Key,
         })
       )
-      console.log('headCommand', headCommand)
 
       syncedMetadata.push({
         Key: file.Key,

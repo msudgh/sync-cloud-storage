@@ -90,7 +90,6 @@ class SyncCloudStorage implements ServerlessPlugin {
    * const client = this.getS3Client()
    */
   getS3Client(): S3Client {
-    console.log('getS3Client called')
     const provider = this.serverless.getProvider('aws')
     const credentials = getCredentials(provider)
     const endpoint = this.config.syncCloudStorage.offline
@@ -161,7 +160,6 @@ class SyncCloudStorage implements ServerlessPlugin {
     const updatedMetadata = await Promise.allSettled(
       this._storages.map((bucket) => syncMetadata(this.client, bucket))
     )
-    console.log('updatedMetadata', updatedMetadata)
 
     return updatedMetadata
   }

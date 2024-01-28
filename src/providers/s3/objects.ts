@@ -87,7 +87,6 @@ export const uploadObjects = async (
           Bucket: storage.name,
           Key: fileToUpload.Key,
           Body: fs.createReadStream(fileToUpload.LocalPath),
-          // ACL: storage.acl,
           ContentType: lookup(fileToUpload.LocalPath) ?? undefined,
         },
       })
@@ -136,13 +135,11 @@ export const deleteObjects = async (
   try {
     const listVersionsParams = {
       Bucket: storage.name,
-      // Prefix: storage.bucketPrefix ? storage.bucketPrefix : undefined,
     }
 
     const versions = await client.send(
       new ListObjectVersionsCommand(listVersionsParams)
     )
-    console.log('versions', versions)
 
     const deleteMarkers = (versions.DeleteMarkers ?? []).map((marker) => ({
       Key: marker.Key,
@@ -161,7 +158,6 @@ export const deleteObjects = async (
       ...deleteMarkers,
       ...versionsToDelete,
     ]
-    console.log('objectsToDelete', objectsToDelete)
 
     if (objectsToDelete.length > 0) {
       const deleteParams = {
