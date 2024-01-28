@@ -23,7 +23,7 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install
-      - name: Install dependencies and run tests with coverage
+      - name: Run tests with coverage
         run: pnpm run test:coverage
       - uses: codecov/codecov-action@v3
         name: Upload coverage reports to Codecov
