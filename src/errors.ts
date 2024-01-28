@@ -1,7 +1,7 @@
 import { NoSuchBucket } from '@aws-sdk/client-s3'
 import { ZodError } from 'zod'
 
-import { Bucket } from './types'
+import { Storage } from './schemas/input'
 
 // can be removed if not needed
 export class InvalidOptionsError extends Error {
@@ -24,10 +24,14 @@ export class InvalidConfigError extends Error {
   }
 }
 
-export const handleBucketError = (error: Error, bucket: Bucket) => {
+export const handleMethodError = (error: Error, storage: Storage) => {
+  let message: string
   if (error instanceof NoSuchBucket) {
-    throw Error(`${error.name}: ${bucket.bucketName}`)
+    message = `${error.name}: ${storage.name}`
+    console.error(message)
   } else {
-    throw Error(`${error.name}/${error.message}: ${bucket.bucketName}`)
+    message = `${error.name}/${error.message}: ${storage.name}`
   }
+  console.error(message)
+  return message
 }

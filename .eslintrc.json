@@ -49,7 +49,7 @@
   },
   "settings": {
     "import/parsers": {
-      "@typescript-eslint/parser": [".ts"]
+      "@typescript-eslint/parser": [".ts", ".js"]
     },
     "import/resolver": {
       "typescript": {

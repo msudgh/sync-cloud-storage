@@ -1,33 +1,43 @@
 'use strict'
 
-import { S3Client, S3ClientConfig, _Object } from '@aws-sdk/client-s3'
+import { S3Client } from '@aws-sdk/client-s3'
 import Serverless from 'serverless'
 import ServerlessPlugin from 'serverless/classes/Plugin'
 
 import { InvalidConfigError } from './errors'
-import { sync, syncMetadata, syncTags } from './provider/s3/buckets'
-import { getCredentials } from './provider/s3/credentials'
-import { InputCustomSchema, inputCustomSchema } from './schemas'
-import { Bucket, ServerlessInstance } from './types'
+import { sync, syncMetadata, syncTags } from './providers/s3/buckets'
+import { getCredentials } from './providers/s3/credentials'
+import { Custom, Storage, custom } from './schemas/input'
+import {
+  IServerless,
+  MethodReturn,
+  TagsMethodPromiseResult,
+  TagsSyncResults,
+} from './types'
 
 /**
- * Cloud Bucket Sync module.
- * @module CloudBucketSync
- * @see cloud-bucket-sync:CloudBucketSync
+ * Sync Cloud Storage module.
+ * @module SyncCloudStorage
  */
-class CloudBucketSync implements ServerlessPlugin {
-  serverless!: Serverless & ServerlessInstance
+class SyncCloudStorage implements ServerlessPlugin {
+  serverless!: Serverless
   options!: Serverless.Options
   hooks: ServerlessPlugin.Hooks
   servicePath: string
-  config: InputCustomSchema
+  config: Custom
   logging: ServerlessPlugin.Logging
   taskProcess?: ServerlessPlugin.Progress
   client: S3Client
-  readonly _buckets: Bucket[] = []
+  readonly _storages: Storage[] = []
 
+  /**
+   * @class SyncCloudStorage
+   * @param {Serverless} serverless - Serverless instance
+   * @param {Object} options - Serverless CLI options
+   * @param {Object} logging - Serverless logging module
+   */
   constructor(
-    serverless: Serverless & ServerlessInstance,
+    serverless: IServerless,
     options: Serverless.Options,
     logging: ServerlessPlugin.Logging
   ) {
@@ -35,7 +45,8 @@ class CloudBucketSync implements ServerlessPlugin {
       throw new Error('Serverless instance is required')
     }
 
-    this.serverless = serverless
+    // Typing with *as* makes testing enable to use a DI version of instance
+    this.serverless = serverless as unknown as Serverless
     this.servicePath = this.serverless.service.serverless.config.servicePath
 
     if (!options) {
@@ -51,7 +62,7 @@ class CloudBucketSync implements ServerlessPlugin {
     this.logging = logging
 
     const config = this.serverless.service.custom
-    const validatedConfig = inputCustomSchema.safeParse(config)
+    const validatedConfig = custom.safeParse(config)
     const { success } = validatedConfig
 
     if (!success) {
@@ -63,93 +74,132 @@ class CloudBucketSync implements ServerlessPlugin {
 
     this.config = validConfig
     this.client = this.getS3Client()
-    this._buckets = this.config.cloudBucketSync.buckets.filter(
+    this._storages = this.config.syncCloudStorage.storages.filter(
       (bucket) => bucket.enabled
     )
     this.hooks = this.setHooks()
   }
 
-  private getS3Client() {
+  /**
+   * Get S3 client.
+   * @returns {S3Client}
+   * @memberof SyncCloudStorage
+   * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
+   *
+   * @example
+   * const client = this.getS3Client()
+   */
+  getS3Client(): S3Client {
+    console.log('getS3Client called')
     const provider = this.serverless.getProvider('aws')
-    const s3Options: S3ClientConfig = getCredentials(provider)
+    const credentials = getCredentials(provider)
+    const endpoint = this.config.syncCloudStorage.offline
+      ? this.config.syncCloudStorage.endpoint ?? process.env.AWS_ENDPOINT_URL
+      : undefined
 
-    if (
-      this.config.cloudBucketSync.endpoint &&
-      this.config.cloudBucketSync.offline
-    ) {
-      s3Options.endpoint = this.config.cloudBucketSync.endpoint
-    }
-
-    return new S3Client(s3Options)
+    return new S3Client({
+      ...credentials,
+      endpoint,
+    })
   }
 
-  protected setHooks() {
-    const syncBucketsHook = () => this.buckets()
+  /**
+   * Set hooks.
+   * @returns {ServerlessPlugin.Hooks} Hooks
+   * @memberof SyncCloudStorage
+   *
+   * @example
+   * const hooks = this.setHooks()
+   */
+  setHooks(): ServerlessPlugin.Hooks {
+    const syncStoragesHook = () => this.storages()
     const syncTagsHook = () => this.tags()
 
     return {
-      // 'before:offline:start:init': syncBucketsHook,
-      // 'before:deploy:deploy': syncBucketsHook,
-      'cloudBucketSync:buckets': syncBucketsHook,
-      'cloudBucketSync:tags': syncTagsHook,
-      initialize: () => syncBucketsHook(),
-      'before:deploy:deploy': () => syncBucketsHook(),
-      // 'deploy:deploy': () => deploy(),
-      // 'after:deploy:deploy': () => afterDeploy(),
+      'before:offline:start:init': syncStoragesHook,
+      'scs:buckets': syncStoragesHook,
+      'scs:tags': syncTagsHook,
+      'before:deploy:deploy': () => syncStoragesHook(),
     }
   }
 
-  private async buckets() {
-    if (this.config.cloudBucketSync.disabled) {
-      return false
+  /**
+   * Sync storages.
+   * @private
+   * @memberof SyncCloudStorage
+   *
+   * @example
+   * const result = await this.storages()
+   */
+  async storages() {
+    const isPluginDisable = this.disableCheck().result
+
+    if (isPluginDisable) {
+      return { result: [] }
     }
 
-    this.taskProcess = this.logging.progress.create({
-      message: 'Syncing buckets and tags started',
-    })
-
-    const syncedBuckets = await Promise.allSettled(
-      this._buckets.map((bucket) => sync(this.client, bucket))
+    const syncedStorages = await Promise.allSettled(
+      this._storages.map((bucket) =>
+        sync(this.client, bucket, this.servicePath)
+      )
     )
-
-    console.log({ syncedBuckets })
-
-    for (const bucket of syncedBuckets) {
-      if (bucket.status === 'rejected') {
-        throw bucket.reason
-      }
-
-      const { value: objects } = bucket
-
-      if (objects.uploaded) {
-        await this.metadata(objects.uploaded)
-      }
-    }
-
-    this.taskProcess.update('Buckets successfully synced')
 
     await this.onExit()
 
-    return true
+    return { result: syncedStorages }
   }
 
-  private async metadata(objects: _Object[]) {
-    return await Promise.allSettled(
-      this._buckets.map((bucket) => syncMetadata(this.client, bucket, objects))
+  /**
+   * Sync metadata.
+   * @memberof SyncCloudStorage
+   * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
+   *
+   * @example
+   * const result = await this.metadata()
+   */
+  async metadata() {
+    const updatedMetadata = await Promise.allSettled(
+      this._storages.map((bucket) => syncMetadata(this.client, bucket))
     )
+    console.log('updatedMetadata', updatedMetadata)
+
+    return updatedMetadata
   }
 
-  private async tags() {
-    if (this.config.cloudBucketSync.disabled) {
-      return false
+  /**
+   * Sync tags.
+   * @private
+   * @returns {TagsMethodPromiseResult}
+   * @memberof SyncCloudStorage
+   * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
+   *
+   * @example
+   * const result = await this.tags()
+   */
+  async tags(): TagsMethodPromiseResult {
+    const isPluginEnable = this.disableCheck().result
+
+    if (!isPluginEnable) {
+      return []
     }
 
-    return await Promise.allSettled(
-      this._buckets.map((bucket) => syncTags(this.client, bucket))
-    )
+    const syncedStorages = (await Promise.allSettled(
+      this._storages.map((bucket) => syncTags(this.client, bucket))
+    )) as TagsSyncResults
+
+    return syncedStorages
   }
 
-  private async onExit() {
+  /**
+   * On exit.
+   * @private
+   * @returns {Promise<void>}
+   * @memberof SyncCloudStorage
+   *
+   * @example
+   * await this.onExit()
+   */
+  async onExit(): Promise<void> {
     if (this.taskProcess) {
       this.taskProcess.remove()
     }
@@ -158,7 +208,16 @@ class CloudBucketSync implements ServerlessPlugin {
       this.client.destroy()
     }
   }
+
+  private disableCheck(): MethodReturn<boolean> {
+    if (this.config.syncCloudStorage.disabled) {
+      console.warn('SyncCloudStorage is disabled!')
+      return { result: true }
+    }
+
+    return { result: false }
+  }
 }
 
-export default CloudBucketSync
-module.exports = CloudBucketSync
+export default SyncCloudStorage
+module.exports = SyncCloudStorage

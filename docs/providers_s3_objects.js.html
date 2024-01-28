@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: providers/s3/objects.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: providers/s3/objects.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>"use strict";
+var __importDefault = (this &amp;&amp; this.__importDefault) || function (mod) {
+    return (mod &amp;&amp; mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteObjects = exports.uploadObjects = exports.listObjects = void 0;
+const fs_1 = __importDefault(require("fs"));
+const client_s3_1 = require("@aws-sdk/client-s3");
+const lib_storage_1 = require("@aws-sdk/lib-storage");
+const mrmime_1 = require("mrmime");
+const errors_1 = require("../../errors");
+const objects_1 = require("../../utils/objects");
+/**
+ * Lists all objects in a bucket.
+ * @memberof S3
+ * @param {S3Client} client
+ * @param {Storage} storage
+ * @returns {Promise&lt;_Object[]>}
+ */
+const listObjects = async (client, storage) => {
+    console.log('List objects in bucket', {
+        name: storage.name,
+    });
+    try {
+        const command = new client_s3_1.ListObjectsV2Command({
+            Bucket: storage.name,
+        });
+        const { Contents = [] } = await client.send(command);
+        console.log('Storage objects', {
+            name: storage.name,
+            objects: Contents,
+        });
+        return Contents;
+    }
+    catch (error) {
+        throw (0, errors_1.handleMethodError)(error, storage);
+    }
+};
+exports.listObjects = listObjects;
+/**
+ * Uploads objects to a bucket.
+ * @memberof S3
+ * @param {S3Client} client
+ * @param {Storage} storage
+ * @param {LocalFile[]} localFiles
+ * @param {string[]} filesToUpload
+ */
+const uploadObjects = async (client, storage, localFiles, filesToUpload) => {
+    const uploadedObjects = [];
+    for (const checksum of filesToUpload) {
+        const fileToUpload = localFiles.find((file) => (0, objects_1.getChecksum)(file.Key, file.ETag) === checksum);
+        if (!fileToUpload) {
+            continue;
+        }
+        console.log('Upload file to bucket', {
+            name: storage.name,
+            Key: fileToUpload.Key,
+            checksum,
+        });
+        try {
+            const command = new lib_storage_1.Upload({
+                client,
+                params: {
+                    Bucket: storage.name,
+                    Key: fileToUpload.Key,
+                    Body: fs_1.default.createReadStream(fileToUpload.LocalPath),
+                    // ACL: storage.acl,
+                    ContentType: (0, mrmime_1.lookup)(fileToUpload.LocalPath) ?? undefined,
+                },
+            });
+            console.log('Uploaded file to bucket', {
+                name: storage.name,
+                Key: fileToUpload.Key,
+                command,
+            });
+            const result = await command.done();
+            uploadedObjects.push({
+                Key: result.Key,
+                ETag: result.ETag,
+                VersionId: result.VersionId,
+                Bucket: result.Bucket,
+                Location: result.Location,
+            });
+        }
+        catch (error) {
+            (0, errors_1.handleMethodError)(error, storage);
+        }
+    }
+    return uploadedObjects;
+};
+exports.uploadObjects = uploadObjects;
+/**
+ * Deletes objects from a bucket.
+ * @memberof S3
+ * @param {S3Client} client
+ * @param {Storage} storage
+ * @param {_Object[]} objects
+ * @returns {Promise&lt;DeletedObject[]>}
+ */
+const deleteObjects = async (client, storage, objects) => {
+    const keys = [...objects].map((object) => object.Key);
+    console.log('Delete following objects from bucket', {
+        bucket: storage.name,
+        keys,
+    });
+    try {
+        const listVersionsParams = {
+            Bucket: storage.name,
+            // Prefix: storage.bucketPrefix ? storage.bucketPrefix : undefined,
+        };
+        const versions = await client.send(new client_s3_1.ListObjectVersionsCommand(listVersionsParams));
+        console.log('versions', versions);
+        const deleteMarkers = (versions.DeleteMarkers ?? []).map((marker) => ({
+            Key: marker.Key,
+            VersionId: marker.VersionId,
+        }));
+        const versionsToDelete = (versions.Versions ?? []).map((version) => ({
+            Key: version.Key,
+            VersionId: version.VersionId,
+        }));
+        const objectsToDelete = [
+            ...objects.map((object) => ({
+                Key: object.Key,
+                VersionId: object.ETag,
+            })),
+            ...deleteMarkers,
+            ...versionsToDelete,
+        ];
+        console.log('objectsToDelete', objectsToDelete);
+        if (objectsToDelete.length > 0) {
+            const deleteParams = {
+                Bucket: storage.name,
+                Delete: {
+                    Objects: objectsToDelete,
+                    Quiet: false,
+                },
+            };
+            const { Deleted = [] } = await client.send(new client_s3_1.DeleteObjectsCommand(deleteParams));
+            console.log(`Permanently deleted all versions of object.`);
+            return Deleted;
+        }
+        else {
+            console.log(`No objects to delete.`);
+            return [];
+        }
+    }
+    catch (error) {
+        (0, errors_1.handleMethodError)(error, storage);
+        return [];
+    }
+};
+exports.deleteObjects = deleteObjects;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Classes</h3><ul><li><a href="module-SyncCloudStorage-SyncCloudStorage.html">SyncCloudStorage</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sun Jan 28 2024 16:55:04 GMT+0100 (GMT+01:00)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

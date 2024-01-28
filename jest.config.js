@@ -1,13 +1,13 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
+  roots: ['<rootDir>/test'],
   transform: {
-    '^.+\\.ts?$': [
-      'ts-jest',
-      {
-        tsconfig: 'tsconfig.test.json'
-      },
-    ],
-  }
-};
+    '^.+\\.ts$': 'ts-jest',
+  },
+  testRegex: '(/test/.*\\.test\\.ts)$',
+  moduleFileExtensions: ['ts', 'js', 'json'],
+  setupFilesAfterEnv: ['<rootDir>/test/jest.setup.ts'],
+  coverageReporters: ['lcov', 'cobertura', 'html', 'text', 'text-summary'],
+  maxConcurrency: 20,
+}

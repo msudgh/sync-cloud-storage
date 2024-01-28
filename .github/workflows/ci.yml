@@ -1,0 +1,35 @@
+name: ci-node.js
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Install dependencies and run tests with coverage
+        run: pnpm run test:coverage
+      - uses: codecov/codecov-action@v3
+        name: Upload coverage reports to Codecov
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage
+          files: ./cobertura-coverage.xml
+          fail_ci_if_error: true
+          verbose: true

@@ -30,15 +30,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_s3_1 = require("@aws-sdk/client-s3");
 const errors_1 = require("./errors");
-const buckets_1 = require("./provider/s3/buckets");
-const credentials_1 = require("./provider/s3/credentials");
-const schemas_1 = require("./schemas");
+const buckets_1 = require("./providers/s3/buckets");
+const credentials_1 = require("./providers/s3/credentials");
+const input_1 = require("./schemas/input");
 /**
- * Cloud Bucket Sync module.
- * @module CloudBucketSync
- * @see cloud-bucket-sync:CloudBucketSync
+ * Sync Cloud Storage module.
+ * @module SyncCloudStorage
  */
-class CloudBucketSync {
+class SyncCloudStorage {
     serverless;
     options;
     hooks;
@@ -47,11 +46,18 @@ class CloudBucketSync {
     logging;
     taskProcess;
     client;
-    _buckets = [];
+    _storages = [];
+    /**
+     * @class SyncCloudStorage
+     * @param {Serverless} serverless - Serverless instance
+     * @param {Object} options - Serverless CLI options
+     * @param {Object} logging - Serverless logging module
+     */
     constructor(serverless, options, logging) {
         if (!serverless) {
             throw new Error('Serverless instance is required');
         }
+        // Typing with *as* makes testing enable to use a DI version of instance
         this.serverless = serverless;
         this.servicePath = this.serverless.service.serverless.config.servicePath;
         if (!options) {
@@ -63,7 +69,7 @@ class CloudBucketSync {
         }
         this.logging = logging;
         const config = this.serverless.service.custom;
-        const validatedConfig = schemas_1.inputCustomSchema.safeParse(config);
+        const validatedConfig = input_1.custom.safeParse(config);
         const { success } = validatedConfig;
         if (!success) {
             const { error } = validatedConfig;
@@ -72,63 +78,105 @@ class CloudBucketSync {
         const { data: validConfig } = validatedConfig;
         this.config = validConfig;
         this.client = this.getS3Client();
-        this._buckets = this.config.cloudBucketSync.buckets.filter((bucket) => bucket.enabled);
+        this._storages = this.config.syncCloudStorage.storages.filter((bucket) => bucket.enabled);
         this.hooks = this.setHooks();
     }
+    /**
+     * Get S3 client.
+     * @returns {S3Client}
+     * @memberof SyncCloudStorage
+     * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
+     *
+     * @example
+     * const client = this.getS3Client()
+     */
     getS3Client() {
+        console.log('getS3Client called');
         const provider = this.serverless.getProvider('aws');
-        const s3Options = (0, credentials_1.getCredentials)(provider);
-        if (this.config.cloudBucketSync.endpoint &amp;&amp;
-            this.config.cloudBucketSync.offline) {
-            s3Options.endpoint = this.config.cloudBucketSync.endpoint;
-        }
-        return new client_s3_1.S3Client(s3Options);
+        const credentials = (0, credentials_1.getCredentials)(provider);
+        const endpoint = this.config.syncCloudStorage.offline
+            ? this.config.syncCloudStorage.endpoint ?? process.env.AWS_ENDPOINT_URL
+            : undefined;
+        return new client_s3_1.S3Client({
+            ...credentials,
+            endpoint,
+        });
     }
+    /**
+     * Set hooks.
+     * @returns {ServerlessPlugin.Hooks} Hooks
+     * @memberof SyncCloudStorage
+     *
+     * @example
+     * const hooks = this.setHooks()
+     */
     setHooks() {
-        const syncBucketsHook = () => this.buckets();
+        const syncStoragesHook = () => this.storages();
         const syncTagsHook = () => this.tags();
         return {
-            // 'before:offline:start:init': syncBucketsHook,
-            // 'before:deploy:deploy': syncBucketsHook,
-            'cloudBucketSync:buckets': syncBucketsHook,
-            'cloudBucketSync:tags': syncTagsHook,
-            initialize: () => syncBucketsHook(),
-            'before:deploy:deploy': () => syncBucketsHook(),
-            // 'deploy:deploy': () => deploy(),
-            // 'after:deploy:deploy': () => afterDeploy(),
+            'before:offline:start:init': syncStoragesHook,
+            'scs:buckets': syncStoragesHook,
+            'scs:tags': syncTagsHook,
+            'before:deploy:deploy': () => syncStoragesHook(),
         };
     }
-    async buckets() {
-        if (this.config.cloudBucketSync.disabled) {
-            return false;
+    /**
+     * Sync storages.
+     * @private
+     * @memberof SyncCloudStorage
+     *
+     * @example
+     * const result = await this.storages()
+     */
+    async storages() {
+        const isPluginDisable = this.disableCheck().result;
+        if (isPluginDisable) {
+            return { result: [] };
         }
-        this.taskProcess = this.logging.progress.create({
-            message: 'Syncing buckets and tags started',
-        });
-        const syncedBuckets = await Promise.allSettled(this._buckets.map((bucket) => (0, buckets_1.sync)(this.client, bucket)));
-        console.log({ syncedBuckets });
-        for (const bucket of syncedBuckets) {
-            if (bucket.status === 'rejected') {
-                throw bucket.reason;
-            }
-            const { value: objects } = bucket;
-            if (objects.uploaded) {
-                await this.metadata(objects.uploaded);
-            }
-        }
-        this.taskProcess.update('Buckets successfully synced');
+        const syncedStorages = await Promise.allSettled(this._storages.map((bucket) => (0, buckets_1.sync)(this.client, bucket, this.servicePath)));
         await this.onExit();
-        return true;
+        return { result: syncedStorages };
     }
-    async metadata(objects) {
-        return await Promise.allSettled(this._buckets.map((bucket) => (0, buckets_1.syncMetadata)(this.client, bucket, objects)));
+    /**
+     * Sync metadata.
+     * @memberof SyncCloudStorage
+     * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
+     *
+     * @example
+     * const result = await this.metadata()
+     */
+    async metadata() {
+        const updatedMetadata = await Promise.allSettled(this._storages.map((bucket) => (0, buckets_1.syncMetadata)(this.client, bucket)));
+        console.log('updatedMetadata', updatedMetadata);
+        return updatedMetadata;
     }
+    /**
+     * Sync tags.
+     * @private
+     * @returns {TagsMethodPromiseResult}
+     * @memberof SyncCloudStorage
+     * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
+     *
+     * @example
+     * const result = await this.tags()
+     */
     async tags() {
-        if (this.config.cloudBucketSync.disabled) {
-            return false;
+        const isPluginEnable = this.disableCheck().result;
+        if (!isPluginEnable) {
+            return [];
         }
-        return await Promise.allSettled(this._buckets.map((bucket) => (0, buckets_1.syncTags)(this.client, bucket)));
+        const syncedStorages = (await Promise.allSettled(this._storages.map((bucket) => (0, buckets_1.syncTags)(this.client, bucket))));
+        return syncedStorages;
     }
+    /**
+     * On exit.
+     * @private
+     * @returns {Promise&lt;void>}
+     * @memberof SyncCloudStorage
+     *
+     * @example
+     * await this.onExit()
+     */
     async onExit() {
         if (this.taskProcess) {
             this.taskProcess.remove();
@@ -137,9 +185,16 @@ class CloudBucketSync {
             this.client.destroy();
         }
     }
+    disableCheck() {
+        if (this.config.syncCloudStorage.disabled) {
+            console.warn('SyncCloudStorage is disabled!');
+            return { result: true };
+        }
+        return { result: false };
+    }
 }
-exports.default = CloudBucketSync;
-module.exports = CloudBucketSync;
+exports.default = SyncCloudStorage;
+module.exports = SyncCloudStorage;
 </code></pre>
         </article>
     </section>
@@ -150,13 +205,13 @@ module.exports = CloudBucketSync;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-CloudBucketSync.html">CloudBucketSync</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Classes</h3><ul><li><a href="module-SyncCloudStorage-SyncCloudStorage.html">SyncCloudStorage</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sat Jan 20 2024 23:50:26 GMT+0100 (GMT+01:00)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sun Jan 28 2024 16:55:04 GMT+0100 (GMT+01:00)
 </footer>
 
 <script> prettyPrint(); </script>

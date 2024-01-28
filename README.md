@@ -1,4 +1,6 @@
-# Cloud Bucket Sync
+# Sync Cloud Storage
+
+![Codecov](https://img.shields.io/codecov/c/github/msudgh/sync-cloud-storage)
 
 A simple way to sync folders & files between a remote machine and a cloud provider's framework.
 
@@ -9,7 +11,7 @@ Available for following cloud frameworks:
 ## Installation
 
 ```bash
-npm install --save cloud-bucket-sync
+npm install --save sync-cloud-storage
 ```
 
 ## Usage
@@ -18,11 +20,11 @@ npm install --save cloud-bucket-sync
 
 ```yaml
 plugins:
-  - cloud-bucket-sync
+  - sync-cloud-storage
 
 custom:
-  cloudBucketSync:
-    - bucketName: my-bucket
+  syncCloudStorage:
+    - name: my-bucket
       localPath: ./assets
       actions:
         - upload
@@ -33,4 +35,14 @@ custom:
         foo: bar
         bar: foo
       acl: public-read
+```
+
+## Deployments
+
+### [Granted](https://github.com/common-fate/granted) (assume)
+
+By using the `assume` command, you can grant access to the plugin to deploy to your cloud framework.
+
+```bash
+assume
 ```

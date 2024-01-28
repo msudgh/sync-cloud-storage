@@ -1,20 +1,25 @@
+import { DeletedObject, Tag, _Object } from '@aws-sdk/client-s3'
 import Serverless from 'serverless'
 
-import { InputCustomSchema } from './schemas'
+import { Custom, Storage } from './schemas/input'
 
-export type Bucket = InputCustomSchema['cloudBucketSync']['buckets'][0]
-
-export type ServerlessInstance = typeof Serverless & {
-  service: {
-    custom: InputCustomSchema
-  }
-}
-
-export type ServerlessProvider = ReturnType<
+export type IServerlessProvider = ReturnType<
   typeof Serverless.prototype.getProvider
 >
 
-export interface ExtendedServerlessProvider extends ServerlessProvider {
+export type IServerless = {
+  service: {
+    custom: Custom
+    serverless: {
+      config: {
+        servicePath: string
+      }
+    }
+  }
+  getProvider(name: string): IServerlessProvider
+}
+
+export interface ExtendedServerlessProvider extends IServerlessProvider {
   cachedCredentials?: {
     accessKeyId?: string
     secretAccessKey?: string
@@ -23,15 +28,52 @@ export interface ExtendedServerlessProvider extends ServerlessProvider {
   }
 }
 
-type CommonFileProperties = {
+export type LocalFile = {
   Key: string
   ETag: string
   Size: number
   LastModified: Date
-}
-
-export type LocalFile = CommonFileProperties & {
   LocalPath: string
 }
 
-export type GenericFunction<R extends (...args: unknown[]) => unknown> = R
+export type StoragesSyncResult = {
+  storage: Storage
+  files: LocalFile[]
+  objects: _Object[]
+  localFilesChecksum: string[]
+  storageObjectsChecksum: string[]
+  filesToUpload: string[]
+  filesToDelete: string[]
+  uploaded: _Object[]
+  deleted: DeletedObject[]
+  error?: string | Error
+  metadata?: Record<string, string>
+}
+
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
+}
+
+export interface MethodReturn<T = undefined> {
+  storage?: Storage
+  result?: T
+  error?: Error | string
+}
+
+export interface MethodReturn<T = undefined> {
+  storage?: Storage
+  result?: T
+  error?: Error | string
+}
+
+export type MetadataSyncResult = Array<boolean>
+export type TagsSyncResult = MethodReturn<Tag[]>
+export type TagsSyncResults = Array<MethodReturn<Tag[]>>
+export type TagsMethodPromiseResult = Promise<TagsSyncResults>
+
+export type SyncMetadataReturn = Array<
+  Pick<_Object, 'Key'> & {
+    Bucket: string
+    Metadata: Record<string, string> | undefined
+  }
+>

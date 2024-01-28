@@ -1,13 +1,20 @@
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import path from 'path'
-import { Readable } from 'stream'
 
-import { Bucket, LocalFile } from '../../types'
+import { Storage } from '../../schemas/input'
+import { LocalFile } from '../../types'
 
+/**
+ * Returns a list of local files recursively.
+ * @memberof Local
+ * @param {string} folder
+ * @param {Storage} storage
+ * @returns {Promise<LocalFile[]>}
+ */
 export const getLocalFiles = async (
   folder: string,
-  bucket: Bucket
+  storage: Storage
 ): Promise<LocalFile[]> => {
   const recursiveFiles = []
   const files = await fs.promises.readdir(folder)
@@ -17,14 +24,14 @@ export const getLocalFiles = async (
     const stat = await fs.promises.stat(fullPath)
 
     if (stat.isDirectory()) {
-      const innerFiles = await getLocalFiles(fullPath, bucket)
+      const innerFiles = await getLocalFiles(fullPath, storage)
       recursiveFiles.push(...innerFiles)
     } else {
       const file: LocalFile = {
         LocalPath: fullPath,
-        Key: bucket.bucketPrefix
-          ? `${bucket.bucketPrefix}/${fullPath}`
-          : fullPath,
+        Key: storage.bucketPrefix
+          ? path.join(`${storage.bucketPrefix}/${item}`)
+          : item,
         LastModified: stat.mtime,
         Size: stat.size,
         ETag: await getFileETag(fs.createReadStream(fullPath)),
@@ -37,17 +44,10 @@ export const getLocalFiles = async (
   return recursiveFiles
 }
 
-const calculateMD5 = async (stream: Readable): Promise<string> => {
+const getFileETag = async (stream: fs.ReadStream) => {
   const hash = createHash('md5')
-
   for await (const chunk of stream) {
     hash.update(chunk)
   }
-
-  return hash.digest('hex')
-}
-
-const getFileETag = async (stream: fs.ReadStream): Promise<string> => {
-  const md5 = await calculateMD5(stream)
-  return md5.toLowerCase()
+  return hash.digest('hex').toLowerCase()
 }
