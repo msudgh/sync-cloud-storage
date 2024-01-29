@@ -39,12 +39,11 @@ jobs:
             sleep 1
           done
           echo "LocalStack is ready for use!"
-
       - name: Run tests with coverage
         run: pnpm run test:coverage
         env:
           IS_OFFLINE: true
-          AWS_ENDPOINT_URL: http://localhost:4566  # Ensure this is set for your tests
+          AWS_ENDPOINT_URL: http://localhost:4566
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
