@@ -8,6 +8,16 @@ jobs:
   test:
     name: Build and Test
     runs-on: ubuntu-22.04
+    services:
+      localstack:
+        image: localstack/localstack
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: s3
+          DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     strategy:
       matrix:
         node-version: [18.x, 20.x]
@@ -25,6 +35,12 @@ jobs:
         run: pnpm install
       - name: Run tests with coverage
         run: pnpm run test:coverage
+        env:
+          IS_OFFLINE: true
+          AWS_ENDPOINT_URL: http://localhost:4566
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
       - uses: codecov/codecov-action@v3
         name: Upload coverage reports to Codecov
         with:
