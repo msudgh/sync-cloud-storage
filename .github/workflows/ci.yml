@@ -17,6 +17,8 @@ jobs:
           SERVICES: s3
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          DEBUG: 1
+          SKIP_SSL_CERT_DOWNLOAD: 1
     strategy:
       matrix:
         node: [18, 20]
