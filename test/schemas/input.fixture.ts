@@ -42,25 +42,81 @@ const createBaseInputFixture = (): Required<Custom> => ({
 })
 
 export const createValidOfflineInputFixture = (
-  endpoint = 'localhost:4569'
+  localPath: string,
+  name = sampleStorageName,
+  bucketPrefix = '',
+  endpoint = process.env.AWS_ENDPOINT_URL
 ): Required<Custom> => {
   return {
-    ...createBaseInputFixture(),
     syncCloudStorage: {
-      ...createBaseInputFixture().syncCloudStorage,
-      offline: true,
-      endpoint,
       disabled: false,
+      endpoint: endpoint,
+      offline: true,
       storages: [
         {
           ...sampleStorage,
+          name,
+          localPath,
+          bucketPrefix,
         },
       ],
     },
   }
 }
 
-export const createValidOnlineInputFixture = (
+export const createValidOfflineInputFixtureWithTags = (
+  localPath: string,
+  name = sampleStorageName,
+  bucketPrefix = '',
+  endpoint = process.env.AWS_ENDPOINT_URL
+): Required<Custom> => {
+  return {
+    syncCloudStorage: {
+      disabled: false,
+      endpoint,
+      offline: true,
+      storages: [
+        {
+          ...sampleStorage,
+          name,
+          localPath,
+          bucketPrefix,
+          tags: {
+            [faker.lorem.word()]: faker.lorem.word(),
+          },
+        },
+      ],
+    },
+  }
+}
+
+export const createValidOfflineInputFixtureWithMetadata = (
+  localPath: string,
+  name = sampleStorageName,
+  bucketPrefix = '',
+  endpoint = process.env.AWS_ENDPOINT_URL
+): Required<Custom> => {
+  return {
+    syncCloudStorage: {
+      disabled: false,
+      endpoint,
+      offline: true,
+      storages: [
+        {
+          ...sampleStorage,
+          name,
+          localPath,
+          bucketPrefix,
+          metadata: {
+            [faker.lorem.word()]: faker.lorem.word(),
+          },
+        },
+      ],
+    },
+  }
+}
+
+export const createValidAWSInputFixture = (
   localPath: string,
   name = sampleStorageName,
   bucketPrefix = ''
@@ -82,7 +138,7 @@ export const createValidOnlineInputFixture = (
   }
 }
 
-export const createValidOnlineInputFixtureWithTags = (
+export const createValidAWSInputFixtureWithTags = (
   localPath: string,
   name = sampleStorageName,
   bucketPrefix = ''
@@ -106,7 +162,7 @@ export const createValidOnlineInputFixtureWithTags = (
     },
   }
 }
-export const createValidOnlineInputFixtureWithMetadata = (
+export const createValidAWSInputFixtureWithMetadata = (
   localPath: string,
   name = sampleStorageName,
   bucketPrefix = ''

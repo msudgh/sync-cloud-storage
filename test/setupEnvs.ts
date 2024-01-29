@@ -5,13 +5,7 @@ export const setupEnvs = async (): Promise<void> => {
     ignoreCache: true,
   })
 
-  const isCI = process.env.CI === 'true'
-  const awsENVsExist =
-    process.env.AWS_ACCESS_KEY_ID &&
-    process.env.AWS_SECRET_ACCESS_KEY &&
-    process.env.AWS_SESSION_TOKEN
-
-  if (!isCI || awsENVsExist) {
+  if (Object.keys(iniFiles ?? {}).includes('credentialsFile')) {
     process.env.AWS_ACCESS_KEY_ID =
       iniFiles.credentialsFile[
         process.env.AWS_PROFILE ?? 'default'
