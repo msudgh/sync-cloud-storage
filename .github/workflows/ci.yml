@@ -32,6 +32,13 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: 'pnpm'
+      - name: Cache pnpm modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
       - name: Install dependencies
         run: pnpm install
       - name: Check LocalStack readiness
