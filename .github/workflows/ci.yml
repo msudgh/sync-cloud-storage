@@ -15,7 +15,6 @@ jobs:
           - 4566:4566
         env:
           SERVICES: s3
-          DEFAULT_REGION: us-east-1
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     strategy:
@@ -33,11 +32,19 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install
+      - name: Check LocalStack readiness
+        run: |
+          while ! nc -z localhost 4566; do   
+            echo "Waiting for LocalStack to be ready..."
+            sleep 1
+          done
+          echo "LocalStack is ready for use!"
+
       - name: Run tests with coverage
         run: pnpm run test:coverage
         env:
           IS_OFFLINE: true
-          AWS_ENDPOINT_URL: http://localhost:4566
+          AWS_ENDPOINT_URL: http://localhost:4566  # Ensure this is set for your tests
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
