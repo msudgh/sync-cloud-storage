@@ -48,7 +48,7 @@ jobs:
         run: pnpm run test:coverage
         env:
           IS_OFFLINE: true
-          AWS_ENDPOINT_URL: localhost:4566
+          AWS_ENDPOINT_URL: http://s3.localhost.localstack.cloud:4566
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1
