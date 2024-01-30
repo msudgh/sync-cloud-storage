@@ -31,7 +31,8 @@
     "lint": "eslint . --ext .ts --ext .js",
     "lint:fix": "eslint . --fix --ext .ts --ext .js",
     "docs:build": "pnpm run build && rm -rf ./docs && ./node_modules/.bin/jsdoc -c jsdoc.json",
-    "docs:start": "pnpm run docs:build && ./node_modules/.bin/http-server -c-1 -o docs"
+    "docs:start": "pnpm run docs:build && ./node_modules/.bin/http-server -c-1 -o docs",
+    "preversion": "pnpm run build && pnpm run format"
   },
   "devDependencies": {
     "@faker-js/faker": "8.4.0",
