@@ -23,13 +23,20 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: 'pnpm'
-      - name: Cache pnpm modules
-        uses: actions/cache@v3
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        shell: bash
+        run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+      - name: Cache ~/.pnpm-store and ./node_modules
+        uses: actions/cache@v4
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: |
+            ${{ steps.npm-cache-dir.outputs.dir }}
+            ~/.pnpm-store
+            ./node_modules
+          key: scs-${{ runner.os }}-node-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-
+            scs-${{ runner.os }}--node-
       - name: Start LocalStack
         uses: LocalStack/setup-localstack@main
         with:
