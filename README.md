@@ -1,6 +1,9 @@
 # Sync Cloud Storage
 
-![Codecov](https://img.shields.io/codecov/c/github/msudgh/sync-cloud-storage)
+[![NPM](https://img.shields.io/npm/v/sync-cloud-storage)](https://www.npmjs.com/package/sync-cloud-storage)
+[![Pipeline Status](https://github.com/msudgh/sync-cloud-storage/actions/workflows/ci.yml/badge.svg?branch=main)](./.github/workflows/ci.yml)
+[![Codecov Status](https://codecov.io/gh/msudgh/sync-cloud-storage/branch/main/graph/badge.svg?token=2BY6063VOY)](https://codecov.io/gh/msudgh/sync-cloud-storage)
+[![License](https://img.shields.io/github/license/msudgh/sync-cloud-storage)](LICENSE)
 
 A simple way to sync folders & files between a remote machine and a cloud provider's framework.
 
