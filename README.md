@@ -34,7 +34,6 @@ custom:
       metadata:
         foo: bar
         bar: foo
-      acl: public-read
 ```
 
 ## Deployments
