@@ -23,8 +23,9 @@
     "prepare": "is-ci || husky",
     "build": "rm -rf ./dist && tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json -w",
-    "test": "jest --verbose --no-cache",
-    "test:watch": "jest --no-cache --watch",
+    "build:type-check": "tsc -p tsconfig.build.json --noEmit",
+    "test": "jest --verbose",
+    "test:watch": "jest --watch",
     "test:coverage": "jest --no-cache --coverage",
     "format": "prettier --write \"**/*.{ts,js,md,json,yaml,yml}\"",
     "lint": "eslint . --ext .ts --ext .js",
@@ -61,15 +62,16 @@
     "@aws-sdk/client-s3": "3.501.0",
     "@aws-sdk/lib-storage": "3.501.0",
     "mrmime": "2.0.0",
+    "winston": "^3.11.0",
     "zod": "3.22.4"
   },
   "lint-staged": {
     "*.{ts,js}": [
-      "npm run lint:fix",
-      "npm run format"
+      "pnpm run lint:fix",
+      "pnpm run format"
     ],
     "*.{json,md,yaml}": [
-      "npm run format"
+      "pnpm run format"
     ]
   }
 }

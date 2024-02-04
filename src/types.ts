@@ -36,6 +36,14 @@ export type LocalFile = {
   LocalPath: string
 }
 
+export type UploadedObject = {
+  key: string | undefined
+  etag: string | undefined
+  versionId: string | undefined
+  storage: string | undefined
+  location: string | undefined
+}
+
 export type StoragesSyncResult = {
   storage: Storage
   files: LocalFile[]
@@ -44,7 +52,7 @@ export type StoragesSyncResult = {
   storageObjectsChecksum: string[]
   filesToUpload: string[]
   filesToDelete: string[]
-  uploaded: _Object[]
+  uploaded: UploadedObject[]
   deleted: DeletedObject[]
   error?: string | Error
   metadata?: Record<string, string>

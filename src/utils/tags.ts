@@ -13,9 +13,9 @@ export const mergeTags = (
   existingTags: Tag[] | undefined,
   newTags: Tags
 ): Tag[] => {
-  const newTagSet = Object.keys(newTags).map((Key) => ({
-    Key,
-    Value: newTags[Key],
+  const newTagSet = Object.keys(newTags).map((key) => ({
+    Key: key,
+    Value: newTags[key],
   }))
 
   const mergedTagSet = [...(existingTags ?? [])]
