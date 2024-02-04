@@ -41,7 +41,7 @@ export const storageExists = async (
 }
 
 /**
- * Syncs storage with upload and delete actions by comparing local file and storage's object checksums.
+ * Syncs storage with upload and delete actions by comparing local file and storage's object `${Key}-${ETag}`.
  * @memberof S3
  * @param {S3Client} client
  * @param {Storage} storage
@@ -125,7 +125,6 @@ export const syncMetadata = async (
   client: S3Client,
   storage: Storage
 ): Promise<SyncMetadataReturn> => {
-  // Get list of existing objects
   const existingObjects = await listObjects(client, storage)
   const syncedMetadata = []
 
@@ -153,7 +152,6 @@ export const syncMetadata = async (
       result,
     })
 
-    // Get Object metadata
     const headCommand = await client.send(
       new HeadObjectCommand({
         Bucket: storage.name,
