@@ -42,7 +42,17 @@
           "caseInsensitive": true
         }
       }
-    ]
+    ],
+    "@typescript-eslint/naming-convention": [
+      "error",
+      {
+        "selector": "variableLike",
+        "format": ["camelCase"]
+      }
+    ],
+    "no-console": 2,
+    "no-unused-vars": 2,
+    "@typescript-eslint/no-unused-vars": ["error"]
   },
   "env": {
     "node": true
