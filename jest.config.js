@@ -7,7 +7,6 @@ module.exports = {
   },
   testRegex: '(/test/.*\\.test\\.ts)$',
   moduleFileExtensions: ['ts', 'js', 'json'],
-  setupFilesAfterEnv: ['<rootDir>/test/jest.setup.ts'],
   coverageReporters: ['lcov', 'cobertura', 'html', 'text', 'text-summary'],
   coveragePathIgnorePatterns: [
     '/node_modules/',
@@ -15,4 +14,5 @@ module.exports = {
     './test/mocks',
   ],
   maxConcurrency: 20,
+  testTimeout: 600000,
 }

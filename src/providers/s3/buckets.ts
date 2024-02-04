@@ -23,6 +23,7 @@ import {
   SyncMetadataReturn,
   TagsSyncResult,
 } from '../../types'
+import logger from '../../utils/logger'
 import { getChecksum } from '../../utils/objects'
 import { mergeTags } from '../../utils/tags'
 import { getLocalFiles } from '../local/objects'
@@ -60,7 +61,7 @@ export const sync = async (
     throw new Error('StorageNotFound')
   }
 
-  console.log('Syncing storage', { storage: storage.name })
+  logger.info('Syncing storage', { storage: storage.name })
 
   const files = await getLocalFiles(
     path.join(servicePath, storage.localPath),
@@ -130,7 +131,7 @@ export const syncMetadata = async (
   const syncedMetadata = []
 
   for (const file of existingObjects) {
-    console.log("Syncing storage's metadata", {
+    logger.info("Syncing storage's metadata", {
       storage: storage.name,
       Key: file.Key,
     })
@@ -149,7 +150,7 @@ export const syncMetadata = async (
 
     const result = await client.send(copyCommand)
 
-    console.log('Metadata synced', {
+    logger.info('Metadata synced', {
       storage: storage.name,
       Key: file.Key,
       result,
@@ -186,7 +187,7 @@ export const syncTags = async (
   client: S3Client,
   storage: Storage
 ): Promise<TagsSyncResult> => {
-  console.log("Syncing storage's tags", { storage: storage.name })
+  logger.info("Syncing storage's tags", { storage: storage.name })
 
   try {
     const existingTagSetCommand = new GetBucketTaggingCommand({
@@ -204,7 +205,7 @@ export const syncTags = async (
 
     await client.send(command)
 
-    console.log("Synced storage's tags", {
+    logger.info("Synced storage's tags", {
       storage: storage.name,
       existingTagSet: existingTagSet.TagSet,
       newTagSet: storage.tags,
@@ -221,7 +222,7 @@ export const createStorage = async (
   client: S3Client,
   storage: Storage
 ): Promise<Storage> => {
-  console.log('Creating storage', { storage: storage.name })
+  logger.info('Creating storage', { storage: storage.name })
 
   const createCommand = new CreateBucketCommand({
     Bucket: storage.name,
@@ -231,7 +232,7 @@ export const createStorage = async (
 
   await client.send(createCommand)
 
-  console.log('Storage created', { storage: storage.name })
+  logger.info('Storage created', { storage: storage.name })
 
   const aclCommand = new PutBucketAclCommand({
     Bucket: storage.name,
@@ -240,7 +241,7 @@ export const createStorage = async (
 
   await client.send(aclCommand)
 
-  console.log('Storage ACL enabled', { storage: storage.name })
+  logger.info('Storage ACL enabled', { storage: storage.name })
 
   return storage
 }
@@ -249,7 +250,7 @@ export const deleteStorage = async (
   client: S3Client,
   storage: Storage
 ): Promise<DeletedObject[]> => {
-  console.log('Deleting storage', { storage: storage.name })
+  logger.info('Deleting storage', { storage: storage.name })
 
   const objects = await listObjects(client, storage)
   const deletedObjects = await deleteObjects(client, storage, objects)
@@ -260,7 +261,7 @@ export const deleteStorage = async (
     })
   )
 
-  console.log('Storage deleted', { storage: storage.name })
+  logger.info('Storage deleted', { storage: storage.name })
 
   return deletedObjects
 }

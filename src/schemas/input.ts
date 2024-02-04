@@ -2,11 +2,12 @@ import { ObjectCannedACL } from '@aws-sdk/client-s3'
 import type { ObjectCannedACL as ObjectCannedACLType } from '@aws-sdk/client-s3'
 import { z } from 'zod'
 
-// Cast to tuple type
-type TupleType = [ObjectCannedACLType, ...ObjectCannedACLType[]]
-export const ObjectCannedACLs = [
-  ...Object.values(ObjectCannedACL).map((acl) => acl),
-] as TupleType
+type ObjectCannedACLsTuple = [ObjectCannedACLType, ...ObjectCannedACLType[]]
+
+// Cast to ObjectCannedACLsTuple
+const objectCannedACLs = Object.values(ObjectCannedACL).map(
+  (acl) => acl
+) as ObjectCannedACLsTuple
 
 const tags = z.record(z.string(), z.string())
 
@@ -16,7 +17,7 @@ const storage = z.object({
   actions: z.array(z.string()).default(['upload', 'delete']),
   bucketPrefix: z.string().default(''),
   enabled: z.boolean().default(true),
-  acl: z.enum(ObjectCannedACLs).default(ObjectCannedACL.authenticated_read),
+  acl: z.enum(objectCannedACLs).default(ObjectCannedACL.authenticated_read),
   defaultContentType: z.string().optional(),
   metadata: z.record(z.string(), z.string()).optional(),
   tags: z.record(z.string(), z.string()).default({}),
@@ -41,4 +42,4 @@ type Storage = z.infer<typeof storage>
 type Tags = z.infer<typeof tags>
 
 export type { Custom, Storage, Tags }
-export { custom, tags, storage, storages }
+export { custom, tags, storage, storages, objectCannedACLs }

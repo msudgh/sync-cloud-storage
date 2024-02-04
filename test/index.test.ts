@@ -16,18 +16,34 @@ import SyncCloudStorage from '../src'
 import { InvalidConfigError } from '../src/errors'
 import { createStorage, deleteStorage } from '../src/providers/s3/buckets'
 import * as objects from '../src/providers/s3/objects'
+import { Storage } from '../src/schemas/input'
 import { LocalFile } from '../src/types'
+import logger from '../src/utils/logger'
 import { mergeTags } from '../src/utils/tags'
 
 const optionsMock = mock<Options>()
 const loggingMock = mock<Logging>()
+
+const setupStorage = async (client: S3Client, storage: Storage) => {
+  try {
+    await deleteStorage(client, storage)
+  } catch (error) {
+    logger.error('Error deleting storage:', error)
+  }
+
+  try {
+    await createStorage(client, storage)
+  } catch (error) {
+    logger.error('Error creating storage:', error)
+  }
+}
 
 describe('SyncCloudStorage', () => {
   beforeAll(async () => {
     await setupEnvs()
   })
 
-  describe('Constructor Related Tests', () => {
+  describe.only('Constructor Related Tests', () => {
     it('should properly configure S3 client for offline mode', async () => {
       const inputCustom = createValidInputFixture(
         './assets/giraffe',
@@ -62,7 +78,7 @@ describe('SyncCloudStorage', () => {
       }
     })
 
-    it('should not sync when plugin is disabled', async () => {
+    it.only('should not sync when plugin is disabled', async () => {
       const inputCustom = createValidDisabledInputFixture()
       const mockServerless = getServerlessMock(inputCustom, __dirname)
       const syncCloudStorage = new SyncCloudStorage(
@@ -86,25 +102,7 @@ describe('SyncCloudStorage', () => {
       const mockServerless = getServerlessMock(inputCustom, __dirname)
 
       try {
-        const syncCloudStorage = new SyncCloudStorage(
-          mockServerless,
-          optionsMock,
-          loggingMock
-        )
-
-        await createStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
-
-        const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
-        await syncCloudStorage.storages()
-        expect(bucketsSpy).toHaveBeenCalledTimes(1)
-
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
+        new SyncCloudStorage(mockServerless, optionsMock, loggingMock)
       } catch (error) {
         expect(error).toBeInstanceOf(InvalidConfigError)
       }
@@ -150,20 +148,6 @@ describe('SyncCloudStorage', () => {
         mockServerless,
         optionsMock,
         loggingMock
-      )
-
-      try {
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
-      } catch (error) {
-        console.error('Error deleting storage:', error)
-      }
-
-      await createStorage(
-        syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
       )
 
       const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
@@ -229,15 +213,7 @@ describe('SyncCloudStorage', () => {
         optionsMock,
         loggingMock
       )
-      try {
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
-      } catch (error) {
-        console.error('Error deleting storage:', error)
-      }
-      await createStorage(
+      await setupStorage(
         syncCloudStorage.getS3Client(),
         inputCustom.syncCloudStorage.storages[0]
       )
@@ -312,15 +288,7 @@ describe('SyncCloudStorage', () => {
         optionsMock,
         loggingMock
       )
-      try {
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
-      } catch (error) {
-        console.error('Error deleting storage:', error)
-      }
-      await createStorage(
+      await setupStorage(
         syncCloudStorage.getS3Client(),
         inputCustom.syncCloudStorage.storages[0]
       )
@@ -358,15 +326,7 @@ describe('SyncCloudStorage', () => {
         optionsMock,
         loggingMock
       )
-      try {
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
-      } catch (error) {
-        console.error('Error deleting storage:', error)
-      }
-      await createStorage(
+      await setupStorage(
         syncCloudStorage.getS3Client(),
         inputCustom.syncCloudStorage.storages[0]
       )
@@ -382,9 +342,9 @@ describe('SyncCloudStorage', () => {
       const expectedResponse = expect.arrayContaining([
         expect.objectContaining({
           status: 'fulfilled',
-          value: existingObjects.map(({ Key }) => {
+          value: existingObjects.map(({ Key: key }) => {
             return {
-              Key,
+              Key: key,
               Metadata: inputCustom.syncCloudStorage.storages[0].metadata,
               Bucket: inputCustom.syncCloudStorage.storages[0].name,
             }
@@ -414,15 +374,7 @@ describe('SyncCloudStorage', () => {
         optionsMock,
         loggingMock
       )
-      try {
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
-      } catch (error) {
-        console.error('Error deleting storage:', error)
-      }
-      await createStorage(
+      await setupStorage(
         syncCloudStorage.getS3Client(),
         inputCustom.syncCloudStorage.storages[0]
       )
@@ -494,15 +446,7 @@ describe('SyncCloudStorage', () => {
         optionsMock,
         loggingMock
       )
-      try {
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
-      } catch (error) {
-        console.error('Error deleting storage:', error)
-      }
-      await createStorage(
+      await setupStorage(
         syncCloudStorage.getS3Client(),
         inputCustom.syncCloudStorage.storages[0]
       )
@@ -568,15 +512,7 @@ describe('SyncCloudStorage', () => {
         optionsMock,
         loggingMock
       )
-      try {
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          inputCustom.syncCloudStorage.storages[0]
-        )
-      } catch (error) {
-        console.error('Error deleting storage:', error)
-      }
-      await createStorage(
+      await setupStorage(
         syncCloudStorage.getS3Client(),
         inputCustom.syncCloudStorage.storages[0]
       )

@@ -13,6 +13,7 @@ import { lookup } from 'mrmime'
 
 import { Storage } from '../../schemas/input'
 import { LocalFile } from '../../types'
+import logger from '../../utils/logger'
 import { getChecksum } from '../../utils/objects'
 
 /**
@@ -26,7 +27,7 @@ export const listObjects = async (
   client: S3Client,
   storage: Storage
 ): Promise<_Object[]> => {
-  console.log('List objects in bucket', {
+  logger.info('List objects in bucket', {
     name: storage.name,
   })
 
@@ -34,14 +35,14 @@ export const listObjects = async (
     Bucket: storage.name,
   })
 
-  const { Contents = [] } = await client.send(command)
+  const { Contents: contents = [] } = await client.send(command)
 
-  console.log('Storage objects', {
+  logger.info('Storage objects', {
     storage: storage.name,
-    storageContents: Contents,
+    storageContents: contents,
   })
 
-  return Contents
+  return contents
 }
 
 /**
@@ -69,40 +70,36 @@ export const uploadObjects = async (
       continue
     }
 
-    console.log('Upload file to bucket', {
+    logger.info('Upload file to bucket', {
       storage: storage.name,
       key: fileToUpload.Key,
       checksum,
     })
 
-    try {
-      const command = new Upload({
-        client,
-        params: {
-          Bucket: storage.name,
-          Key: fileToUpload.Key,
-          Body: fs.createReadStream(fileToUpload.LocalPath),
-          ContentType: lookup(fileToUpload.LocalPath) ?? undefined,
-        },
-      })
-
-      console.log('Uploaded file to bucket', {
-        storage: storage.name,
+    const command = new Upload({
+      client,
+      params: {
+        Bucket: storage.name,
         Key: fileToUpload.Key,
-      })
+        Body: fs.createReadStream(fileToUpload.LocalPath),
+        ContentType: lookup(fileToUpload.LocalPath) ?? undefined,
+      },
+    })
 
-      const result = await command.done()
+    logger.info('Uploaded file to bucket', {
+      storage: storage.name,
+      Key: fileToUpload.Key,
+    })
 
-      uploadedObjects.push({
-        Key: result.Key,
-        ETag: result.ETag,
-        VersionId: result.VersionId,
-        Bucket: result.Bucket,
-        Location: result.Location,
-      })
-    } catch (error) {
-      console.error(error)
-    }
+    const result = await command.done()
+
+    uploadedObjects.push({
+      key: result.Key,
+      etag: result.ETag,
+      versionId: result.VersionId,
+      storage: result.Bucket,
+      location: result.Location,
+    })
   }
 
   return uploadedObjects
@@ -124,7 +121,7 @@ export const deleteObjects = async (
 ): Promise<DeletedObject[]> => {
   const keys = [...objects].map((object) => object.Key as string)
 
-  console.log('Delete following objects from bucket', {
+  logger.info('Delete following objects from bucket', {
     storage: storage.name,
     keys,
   })
@@ -158,7 +155,7 @@ export const deleteObjects = async (
     ]
 
     if (objectsToDelete.length > 0) {
-      const { Deleted = [] } = await client.send(
+      const { Deleted: deleted = [] } = await client.send(
         new DeleteObjectsCommand({
           Bucket: storage.name,
           Delete: {
@@ -168,13 +165,13 @@ export const deleteObjects = async (
         })
       )
 
-      console.log(`Permanently deleted all versions of object.`, {
+      logger.info(`Permanently deleted all versions of object.`, {
         storage: storage.name,
       })
 
-      return Deleted
+      return deleted
     } else {
-      console.log(`No objects to delete.`, { storage: storage.name })
+      logger.info(`No objects to delete.`, { storage: storage.name })
 
       return []
     }

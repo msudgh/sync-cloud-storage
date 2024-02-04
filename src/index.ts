@@ -14,6 +14,7 @@ import {
   TagsMethodPromiseResult,
   TagsSyncResults,
 } from './types'
+import logger from './utils/logger'
 
 /**
  * Sync Cloud Storage module.
@@ -207,7 +208,7 @@ class SyncCloudStorage implements ServerlessPlugin {
 
   private disableCheck(): MethodReturn<boolean> {
     if (this.config.syncCloudStorage.disabled) {
-      console.warn('SyncCloudStorage is disabled!')
+      logger.warning('SyncCloudStorage is disabled!')
       return { result: true }
     }
 
