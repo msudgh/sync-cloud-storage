@@ -16,7 +16,6 @@ const storage = z.object({
   actions: z.array(z.string()).default(['upload', 'delete']),
   bucketPrefix: z.string().default(''),
   enabled: z.boolean().default(true),
-  deleteRemoved: z.boolean().default(true),
   acl: z.enum(ObjectCannedACLs).default(ObjectCannedACL.authenticated_read),
   defaultContentType: z.string().optional(),
   metadata: z.record(z.string(), z.string()).optional(),

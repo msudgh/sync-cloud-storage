@@ -6,5 +6,5 @@
  * @returns {string}
  */
 export const getChecksum = (key: string = '', etag: string = ''): string => {
-  return `${key}-${etag}`
+  return `${key}-${etag.replace(/"/g, '')}`
 }

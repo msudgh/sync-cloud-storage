@@ -11,7 +11,6 @@ import {
 import { Upload } from '@aws-sdk/lib-storage'
 import { lookup } from 'mrmime'
 
-import { handleMethodError } from '../../errors'
 import { Storage } from '../../schemas/input'
 import { LocalFile } from '../../types'
 import { getChecksum } from '../../utils/objects'
@@ -31,22 +30,18 @@ export const listObjects = async (
     name: storage.name,
   })
 
-  try {
-    const command = new ListObjectsV2Command({
-      Bucket: storage.name,
-    })
+  const command = new ListObjectsV2Command({
+    Bucket: storage.name,
+  })
 
-    const { Contents = [] } = await client.send(command)
+  const { Contents = [] } = await client.send(command)
 
-    console.log('Storage objects', {
-      name: storage.name,
-      objects: Contents,
-    })
+  console.log('Storage objects', {
+    storage: storage.name,
+    storageContents: Contents,
+  })
 
-    return Contents
-  } catch (error) {
-    throw handleMethodError(error as Error, storage)
-  }
+  return Contents
 }
 
 /**
@@ -75,8 +70,8 @@ export const uploadObjects = async (
     }
 
     console.log('Upload file to bucket', {
-      name: storage.name,
-      Key: fileToUpload.Key,
+      storage: storage.name,
+      key: fileToUpload.Key,
       checksum,
     })
 
@@ -92,9 +87,8 @@ export const uploadObjects = async (
       })
 
       console.log('Uploaded file to bucket', {
-        name: storage.name,
+        storage: storage.name,
         Key: fileToUpload.Key,
-        command,
       })
 
       const result = await command.done()
@@ -107,7 +101,7 @@ export const uploadObjects = async (
         Location: result.Location,
       })
     } catch (error) {
-      handleMethodError(error as Error, storage)
+      console.error(error)
     }
   }
 
@@ -125,26 +119,30 @@ export const uploadObjects = async (
 export const deleteObjects = async (
   client: S3Client,
   storage: Storage,
-  objects: _Object[]
+  objects: _Object[],
+  retry = 0
 ): Promise<DeletedObject[]> => {
   const keys = [...objects].map((object) => object.Key as string)
+
   console.log('Delete following objects from bucket', {
-    bucket: storage.name,
+    storage: storage.name,
     keys,
   })
-  try {
-    const listVersionsParams = {
-      Bucket: storage.name,
-    }
 
+  try {
     const versions = await client.send(
-      new ListObjectVersionsCommand(listVersionsParams)
+      new ListObjectVersionsCommand({
+        Bucket: storage.name,
+        Prefix: storage.bucketPrefix ? storage.bucketPrefix : undefined,
+        MaxKeys: 1000000000,
+      })
     )
 
     const deleteMarkers = (versions.DeleteMarkers ?? []).map((marker) => ({
       Key: marker.Key,
       VersionId: marker.VersionId,
     }))
+
     const versionsToDelete = (versions.Versions ?? []).map((version) => ({
       Key: version.Key,
       VersionId: version.VersionId,
@@ -160,27 +158,31 @@ export const deleteObjects = async (
     ]
 
     if (objectsToDelete.length > 0) {
-      const deleteParams = {
-        Bucket: storage.name,
-        Delete: {
-          Objects: objectsToDelete,
-          Quiet: false,
-        },
-      }
-
       const { Deleted = [] } = await client.send(
-        new DeleteObjectsCommand(deleteParams)
+        new DeleteObjectsCommand({
+          Bucket: storage.name,
+          Delete: {
+            Objects: objectsToDelete,
+            Quiet: false,
+          },
+        })
       )
-      console.log(`Permanently deleted all versions of object.`)
+
+      console.log(`Permanently deleted all versions of object.`, {
+        storage: storage.name,
+      })
 
       return Deleted
     } else {
-      console.log(`No objects to delete.`)
+      console.log(`No objects to delete.`, { storage: storage.name })
 
       return []
     }
   } catch (error) {
-    handleMethodError(error as Error, storage)
-    return []
+    if (retry >= 3) {
+      throw error
+    }
+
+    return deleteObjects(client, storage, objects, retry + 1)
   }
 }

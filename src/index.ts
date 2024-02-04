@@ -6,7 +6,7 @@ import ServerlessPlugin from 'serverless/classes/Plugin'
 
 import { InvalidConfigError } from './errors'
 import { sync, syncMetadata, syncTags } from './providers/s3/buckets'
-import { getCredentials } from './providers/s3/credentials'
+// import { getCredentials } from './providers/s3/credentials'
 import { Custom, Storage, custom } from './schemas/input'
 import {
   IServerless,
@@ -90,14 +90,12 @@ class SyncCloudStorage implements ServerlessPlugin {
    * const client = this.getS3Client()
    */
   getS3Client(): S3Client {
-    const provider = this.serverless.getProvider('aws')
-    const credentials = getCredentials(provider)
     const endpoint = this.config.syncCloudStorage.offline
       ? this.config.syncCloudStorage.endpoint ?? process.env.AWS_ENDPOINT_URL
       : undefined
 
     return new S3Client({
-      ...credentials,
+      // ...credentials,
       endpoint,
     })
   }

@@ -14,19 +14,28 @@ import { ExtendedServerlessProvider } from '../../types'
 export const getCredentials = (
   provider: ExtendedServerlessProvider
 ): Credentials => {
-  const { cachedCredentials } = provider
-  const credentials = cachedCredentials ?? {}
+  const { cachedCredentials, getRegion, getCredentials } = provider
+  const credentials = cachedCredentials ?? {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? undefined,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? undefined,
+    sessionToken: process.env.AWS_SESSION_TOKEN ?? undefined,
+  }
   const { accessKeyId, secretAccessKey } = credentials
+  const region = getRegion()
 
   if (accessKeyId && secretAccessKey) {
     return {
-      region: provider.getRegion(),
+      region,
       credentials,
     }
-  } else {
+  }
+
+  if (getCredentials() !== undefined) {
     return {
-      region: provider.getRegion() || provider.getCredentials().region,
-      credentials: provider.getCredentials().credentials,
+      region: getCredentials().region || region,
+      credentials: getCredentials().credentials,
     }
+  } else {
+    throw new Error('AWS credentials not found!')
   }
 }
