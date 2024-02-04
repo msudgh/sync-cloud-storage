@@ -32,7 +32,7 @@ export const getLocalFiles = async (
         Key: storage.bucketPrefix
           ? path.join(`${storage.bucketPrefix}/${item}`)
           : item,
-        LastModified: stat.mtime,
+        LastModified: new Date(stat.mtime),
         Size: stat.size,
         ETag: await getFileETag(fs.createReadStream(fullPath)),
       }
