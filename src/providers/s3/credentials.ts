@@ -18,7 +18,6 @@ export const getCredentials = (
   const credentials = cachedCredentials ?? {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? undefined,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? undefined,
-    sessionToken: process.env.AWS_SESSION_TOKEN ?? undefined,
   }
   const { accessKeyId, secretAccessKey } = credentials
   const region = getRegion()
