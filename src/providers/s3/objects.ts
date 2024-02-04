@@ -9,12 +9,11 @@ import {
   _Object,
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-import { lookup } from 'mrmime'
 
 import { Storage } from '../../schemas/input'
 import { LocalFile } from '../../types'
 import logger from '../../utils/logger'
-import { getChecksum } from '../../utils/objects'
+import { getChecksum, getContentType } from '../../utils/objects'
 
 /**
  * Lists all objects in a bucket.
@@ -82,7 +81,7 @@ export const uploadObjects = async (
         Bucket: storage.name,
         Key: fileToUpload.Key,
         Body: fs.createReadStream(fileToUpload.LocalPath),
-        ContentType: lookup(fileToUpload.LocalPath) ?? undefined,
+        ContentType: getContentType(fileToUpload.Key),
       },
     })
 

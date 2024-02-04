@@ -13,7 +13,6 @@ import {
   PutBucketTaggingCommand,
   S3Client,
 } from '@aws-sdk/client-s3'
-import { lookup } from 'mrmime'
 
 import { deleteObjects, listObjects, uploadObjects } from './objects'
 import { Storage } from '../../schemas/input'
@@ -24,7 +23,7 @@ import {
   UploadedObject,
 } from '../../types'
 import logger from '../../utils/logger'
-import { getChecksum } from '../../utils/objects'
+import { getChecksum, getContentType } from '../../utils/objects'
 import { mergeTags } from '../../utils/tags'
 import { getLocalFiles } from '../local/objects'
 
@@ -136,14 +135,11 @@ export const syncMetadata = async (
       Key: file.Key,
     })
 
-    const detectedContentType =
-      lookup(file.Key as string) ?? storage.defaultContentType
-
     const copyCommand = new CopyObjectCommand({
       Bucket: storage.name,
       Key: file.Key,
       CopySource: encodeURIComponent(`${storage.name}/${file.Key}`),
-      ContentType: detectedContentType,
+      ContentType: getContentType(file.Key),
       MetadataDirective: MetadataDirective.REPLACE,
       Metadata: storage.metadata,
     })

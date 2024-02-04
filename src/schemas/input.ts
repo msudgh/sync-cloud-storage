@@ -18,7 +18,6 @@ const storage = z.object({
   bucketPrefix: z.string().default(''),
   enabled: z.boolean().default(true),
   acl: z.enum(objectCannedACLs).default(ObjectCannedACL.authenticated_read),
-  defaultContentType: z.string().optional(),
   metadata: z.record(z.string(), z.string()).optional(),
   tags: z.record(z.string(), z.string()).default({}),
 })

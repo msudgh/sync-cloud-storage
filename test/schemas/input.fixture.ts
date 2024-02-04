@@ -24,7 +24,6 @@ const createBaseInputFixture = (): Required<Custom> => ({
         bucketPrefix: faker.lorem.word(),
         enabled: faker.datatype.boolean(),
         acl: faker.helpers.arrayElement(objectCannedACLs),
-        defaultContentType: faker.system.mimeType(),
         metadata: {
           exampleKey: faker.lorem.word(),
         },
@@ -146,7 +145,6 @@ export const createInvalidInputFixture = (
         bucketPrefix: 456,
         enabled: 'false',
         acl: undefined,
-        defaultContentType: false,
         metadata: 'key: value',
         tags: [],
       },
