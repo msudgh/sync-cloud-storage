@@ -12,19 +12,18 @@ import {
   PutBucketAclCommand,
   PutBucketTaggingCommand,
   S3Client,
-  _Object,
 } from '@aws-sdk/client-s3'
-import { lookup } from 'mrmime'
 
 import { deleteObjects, listObjects, uploadObjects } from './objects'
-import { handleMethodError } from '../../errors'
 import { Storage } from '../../schemas/input'
 import {
   StoragesSyncResult,
   SyncMetadataReturn,
   TagsSyncResult,
+  UploadedObject,
 } from '../../types'
-import { getChecksum } from '../../utils/objects'
+import logger from '../../utils/logger'
+import { getChecksum, getContentType } from '../../utils/objects'
 import { mergeTags } from '../../utils/tags'
 import { getLocalFiles } from '../local/objects'
 
@@ -58,10 +57,10 @@ export const sync = async (
   const storageExist = await storageExists(client, name)
 
   if (!storageExist) {
-    throw handleMethodError(new Error(`Storage doesn't exist!`), storage)
+    throw new Error('StorageNotFound')
   }
 
-  console.log('Syncing storage', { storage: storage.name })
+  logger.info('Syncing storage', { storage: storage.name })
 
   const files = await getLocalFiles(
     path.join(servicePath, storage.localPath),
@@ -85,21 +84,19 @@ export const sync = async (
     (objectChecksum) => !localFilesChecksum.includes(objectChecksum)
   )
 
-  let uploaded: _Object[] = []
+  let uploaded: UploadedObject[] = []
   let deleted: DeletedObject[] = []
 
-  if (filesToUpload.length > 0 && storage.actions.includes('upload')) {
+  if (filesToUpload.length >= 1 && storage.actions.includes('upload')) {
     uploaded = await uploadObjects(client, storage, files, filesToUpload)
   }
 
-  if (filesToDelete.length > 0 && storage.actions.includes('delete')) {
-    if (storage.deleteRemoved) {
-      const objectsToDelete = objects.filter((object) =>
-        filesToDelete.includes(getChecksum(object.Key, object.ETag))
-      )
+  if (filesToDelete.length >= 1 && storage.actions.includes('delete')) {
+    const objectsToDelete = objects.filter((object) =>
+      filesToDelete.includes(getChecksum(object.Key, object.ETag))
+    )
 
-      deleted = await deleteObjects(client, storage, objectsToDelete)
-    }
+    deleted = await deleteObjects(client, storage, objectsToDelete)
   }
 
   const result: StoragesSyncResult = {
@@ -133,50 +130,43 @@ export const syncMetadata = async (
   const syncedMetadata = []
 
   for (const file of existingObjects) {
-    console.log("Syncing storage's metadata", {
+    logger.info("Syncing storage's metadata", {
       storage: storage.name,
       Key: file.Key,
     })
 
-    const detectedContentType =
-      lookup(file.Key as string) ?? storage.defaultContentType
+    const copyCommand = new CopyObjectCommand({
+      Bucket: storage.name,
+      Key: file.Key,
+      CopySource: encodeURIComponent(`${storage.name}/${file.Key}`),
+      ContentType: getContentType(file.Key),
+      MetadataDirective: MetadataDirective.REPLACE,
+      Metadata: storage.metadata,
+    })
 
-    try {
-      const copyCommand = new CopyObjectCommand({
+    const result = await client.send(copyCommand)
+
+    logger.info('Metadata synced', {
+      storage: storage.name,
+      Key: file.Key,
+      result,
+    })
+
+    // Get Object metadata
+    const headCommand = await client.send(
+      new HeadObjectCommand({
         Bucket: storage.name,
-        Key: file.Key,
-        CopySource: encodeURIComponent(`${storage.name}/${file.Key}`),
-        ContentType: detectedContentType,
-        MetadataDirective: MetadataDirective.REPLACE,
-        Metadata: storage.metadata,
+        Key: storage.prefix
+          ? path.join(storage.prefix, `${file.Key}`)
+          : file.Key,
       })
+    )
 
-      const result = await client.send(copyCommand)
-
-      console.log('Metadata synced', {
-        storage: storage.name,
-        Key: file.Key,
-        result,
-      })
-
-      // Get Object metadata
-      const headCommand = await client.send(
-        new HeadObjectCommand({
-          Bucket: storage.name,
-          Key: storage.bucketPrefix
-            ? path.join(storage.bucketPrefix, `${file.Key}`)
-            : file.Key,
-        })
-      )
-
-      syncedMetadata.push({
-        Key: file.Key,
-        Bucket: storage.name,
-        Metadata: headCommand.Metadata,
-      })
-    } catch (error) {
-      handleMethodError(error as Error, storage)
-    }
+    syncedMetadata.push({
+      Key: file.Key,
+      Bucket: storage.name,
+      Metadata: headCommand.Metadata,
+    })
   }
 
   return syncedMetadata
@@ -193,7 +183,7 @@ export const syncTags = async (
   client: S3Client,
   storage: Storage
 ): Promise<TagsSyncResult> => {
-  console.log("Syncing storage's tags", { storage: storage.name })
+  logger.info("Syncing storage's tags", { storage: storage.name })
 
   try {
     const existingTagSetCommand = new GetBucketTaggingCommand({
@@ -202,18 +192,16 @@ export const syncTags = async (
     const existingTagSet = await client.send(existingTagSetCommand)
     const mergedTagSet = mergeTags(existingTagSet.TagSet, storage.tags ?? {})
 
-    const Tagging = {
-      TagSet: mergedTagSet,
-    }
-
     const command = new PutBucketTaggingCommand({
       Bucket: storage.name,
-      Tagging: Tagging,
+      Tagging: {
+        TagSet: mergedTagSet,
+      },
     })
 
     await client.send(command)
 
-    console.log("Synced storage's tags", {
+    logger.info("Synced storage's tags", {
       storage: storage.name,
       existingTagSet: existingTagSet.TagSet,
       newTagSet: storage.tags,
@@ -222,7 +210,7 @@ export const syncTags = async (
 
     return { storage, result: mergedTagSet }
   } catch (error) {
-    return { storage, error: handleMethodError(error as Error, storage) }
+    return { storage, error: JSON.stringify(error) }
   }
 }
 
@@ -230,55 +218,46 @@ export const createStorage = async (
   client: S3Client,
   storage: Storage
 ): Promise<Storage> => {
-  console.log('Creating storage', { storage: storage.name })
+  logger.info('Creating storage', { storage: storage.name })
 
-  try {
-    const createCommand = new CreateBucketCommand({
-      Bucket: storage.name,
-      ObjectLockEnabledForBucket: true,
-      ObjectOwnership: 'BucketOwnerPreferred',
-    })
+  const createCommand = new CreateBucketCommand({
+    Bucket: storage.name,
+    ObjectLockEnabledForBucket: true,
+    ObjectOwnership: 'BucketOwnerPreferred',
+  })
 
-    await client.send(createCommand)
+  await client.send(createCommand)
 
-    console.log('Storage created', { storage: storage.name })
+  logger.info('Storage created', { storage: storage.name })
 
-    const aclCommand = new PutBucketAclCommand({
-      Bucket: storage.name,
-      ACL: 'private',
-    })
+  const aclCommand = new PutBucketAclCommand({
+    Bucket: storage.name,
+    ACL: 'private',
+  })
 
-    await client.send(aclCommand)
+  await client.send(aclCommand)
 
-    console.log('Storage ACL enabled', { storage: storage.name })
+  logger.info('Storage ACL enabled', { storage: storage.name })
 
-    return storage
-  } catch (error) {
-    throw handleMethodError(error as Error, storage)
-  }
+  return storage
 }
 
 export const deleteStorage = async (
   client: S3Client,
   storage: Storage
 ): Promise<DeletedObject[]> => {
-  console.log('Deleting storage', { storage: storage.name })
+  logger.info('Deleting storage', { storage: storage.name })
 
-  try {
-    const objects = await listObjects(client, storage)
+  const objects = await listObjects(client, storage)
+  const deletedObjects = await deleteObjects(client, storage, objects)
 
-    const deletedObjects = await deleteObjects(client, storage, objects)
-
-    const deleteCommand = new DeleteBucketCommand({
+  await client.send(
+    new DeleteBucketCommand({
       Bucket: storage.name,
     })
+  )
 
-    await client.send(deleteCommand)
+  logger.info('Storage deleted', { storage: storage.name })
 
-    console.log('Storage deleted', { storage: storage.name })
-
-    return deletedObjects
-  } catch (error) {
-    throw handleMethodError(error as Error, storage)
-  }
+  return deletedObjects
 }
