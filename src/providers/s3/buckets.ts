@@ -142,6 +142,7 @@ export const syncMetadata = async (
       ContentType: getContentType(file.Key),
       MetadataDirective: MetadataDirective.REPLACE,
       Metadata: storage.metadata,
+      ACL: storage.acl,
     })
 
     const result = await client.send(copyCommand)

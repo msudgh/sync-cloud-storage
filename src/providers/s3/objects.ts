@@ -82,6 +82,7 @@ export const uploadObjects = async (
         Key: fileToUpload.Key,
         Body: fs.createReadStream(fileToUpload.LocalPath),
         ContentType: getContentType(fileToUpload.Key),
+        ACL: storage.acl,
       },
     })
 
