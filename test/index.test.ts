@@ -43,7 +43,7 @@ describe('SyncCloudStorage', () => {
     await setupEnvs()
   })
 
-  describe.only('Constructor Related Tests', () => {
+  describe('Constructor Related Tests', () => {
     it('should properly configure S3 client for offline mode', async () => {
       const inputCustom = createValidInputFixture(
         './assets/giraffe',
@@ -78,7 +78,7 @@ describe('SyncCloudStorage', () => {
       }
     })
 
-    it.only('should not sync when plugin is disabled', async () => {
+    it('should not sync when plugin is disabled', async () => {
       const inputCustom = createValidDisabledInputFixture()
       const mockServerless = getServerlessMock(inputCustom, __dirname)
       const syncCloudStorage = new SyncCloudStorage(
@@ -150,6 +150,11 @@ describe('SyncCloudStorage', () => {
         loggingMock
       )
 
+      await setupStorage(
+        syncCloudStorage.getS3Client(),
+        inputCustom.syncCloudStorage.storages[0]
+      )
+
       const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
 
@@ -179,11 +184,11 @@ describe('SyncCloudStorage', () => {
               storageObjectsChecksum: [],
               uploaded: [
                 {
-                  Bucket: inputCustom.syncCloudStorage.storages[0].name,
-                  ETag: expect.any(String),
-                  Key: giraffeREADME,
-                  Location: expect.any(String),
-                  VersionId: expect.any(String),
+                  storage: inputCustom.syncCloudStorage.storages[0].name,
+                  etag: expect.any(String),
+                  key: giraffeREADME,
+                  location: expect.any(String),
+                  versionId: expect.any(String),
                 },
               ],
               deleted: [],
@@ -248,13 +253,13 @@ describe('SyncCloudStorage', () => {
               storageObjectsChecksum: [],
               uploaded: [
                 {
-                  Bucket: inputCustom.syncCloudStorage.storages[0].name,
-                  ETag: expect.any(String),
-                  Key: expect.stringMatching(
+                  storage: inputCustom.syncCloudStorage.storages[0].name,
+                  etag: expect.any(String),
+                  key: expect.stringMatching(
                     new RegExp(`${bucketPrefix}/${giraffeREADME}`)
                   ),
-                  Location: expect.any(String),
-                  VersionId: expect.any(String),
+                  location: expect.any(String),
+                  versionId: expect.any(String),
                 },
               ],
               deleted: [],
@@ -412,11 +417,11 @@ describe('SyncCloudStorage', () => {
               storageObjectsChecksum: expect.arrayContaining([]),
               uploaded: [
                 {
-                  Bucket: inputCustom.syncCloudStorage.storages[0].name,
-                  ETag: expect.any(String),
-                  Key: giraffeREADME,
-                  Location: expect.any(String),
-                  VersionId: expect.any(String),
+                  storage: inputCustom.syncCloudStorage.storages[0].name,
+                  etag: expect.any(String),
+                  key: giraffeREADME,
+                  location: expect.any(String),
+                  versionId: expect.any(String),
                 },
               ],
             },
@@ -573,11 +578,11 @@ describe('SyncCloudStorage', () => {
               storageObjectsChecksum: [expect.stringMatching(giraffeTXT)],
               uploaded: [
                 {
-                  Bucket: inputCustom.syncCloudStorage.storages[0].name,
-                  ETag: expect.any(String),
-                  Key: expect.stringMatching(giraffeREADME),
-                  Location: expect.any(String),
-                  VersionId: expect.any(String),
+                  storage: inputCustom.syncCloudStorage.storages[0].name,
+                  etag: expect.any(String),
+                  key: expect.stringMatching(giraffeREADME),
+                  location: expect.any(String),
+                  versionId: expect.any(String),
                 },
               ],
             },

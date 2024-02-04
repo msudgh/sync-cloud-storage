@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker'
 
-import { Custom, ObjectCannedACLs, Storage } from '../../src/schemas/input'
+import { Custom, Storage, objectCannedACLs } from '../../src/schemas/input'
 import { DeepPartial } from '../../src/types'
 
 export const sampleStorage: Storage = {
@@ -23,7 +23,7 @@ const createBaseInputFixture = (): Required<Custom> => ({
         actions: ['upload', 'delete'],
         bucketPrefix: faker.lorem.word(),
         enabled: faker.datatype.boolean(),
-        acl: faker.helpers.arrayElement(ObjectCannedACLs),
+        acl: faker.helpers.arrayElement(objectCannedACLs),
         defaultContentType: faker.system.mimeType(),
         metadata: {
           exampleKey: faker.lorem.word(),

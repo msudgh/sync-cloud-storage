@@ -23,6 +23,7 @@
     "prepare": "is-ci || husky",
     "build": "rm -rf ./dist && tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json -w",
+    "build:type-check": "tsc -p tsconfig.build.json --noEmit",
     "test": "jest --verbose",
     "test:watch": "jest --watch",
     "test:coverage": "jest --no-cache --coverage",
@@ -66,11 +67,11 @@
   },
   "lint-staged": {
     "*.{ts,js}": [
-      "npm run lint:fix",
-      "npm run format"
+      "pnpm run lint:fix",
+      "pnpm run format"
     ],
     "*.{json,md,yaml}": [
-      "npm run format"
+      "pnpm run format"
     ]
   }
 }

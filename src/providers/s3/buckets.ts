@@ -12,7 +12,6 @@ import {
   PutBucketAclCommand,
   PutBucketTaggingCommand,
   S3Client,
-  _Object,
 } from '@aws-sdk/client-s3'
 import { lookup } from 'mrmime'
 
@@ -22,6 +21,7 @@ import {
   StoragesSyncResult,
   SyncMetadataReturn,
   TagsSyncResult,
+  UploadedObject,
 } from '../../types'
 import logger from '../../utils/logger'
 import { getChecksum } from '../../utils/objects'
@@ -85,7 +85,7 @@ export const sync = async (
     (objectChecksum) => !localFilesChecksum.includes(objectChecksum)
   )
 
-  let uploaded: _Object[] = []
+  let uploaded: UploadedObject[] = []
   let deleted: DeletedObject[] = []
 
   if (filesToUpload.length >= 1 && storage.actions.includes('upload')) {
