@@ -205,12 +205,12 @@ describe('SyncCloudStorage', () => {
       )
     })
 
-    it('should sync when the bucketPrefix', async () => {
-      const bucketPrefix = 'animals'
+    it('should sync when the prefix', async () => {
+      const prefix = 'animals'
       const inputCustom = createValidInputFixture(
         './assets/giraffe',
         sampleStorage.name,
-        bucketPrefix
+        prefix
       )
       const mockServerless = getServerlessMock(inputCustom, __dirname)
       const syncCloudStorage = new SyncCloudStorage(
@@ -237,7 +237,7 @@ describe('SyncCloudStorage', () => {
               files: [
                 {
                   Key: expect.stringMatching(
-                    new RegExp(`${bucketPrefix}/${giraffeREADME}`)
+                    new RegExp(`${prefix}/${giraffeREADME}`)
                   ),
                   LocalPath: expect.any(String),
                   ETag: expect.any(String),
@@ -256,7 +256,7 @@ describe('SyncCloudStorage', () => {
                   storage: inputCustom.syncCloudStorage.storages[0].name,
                   etag: expect.any(String),
                   key: expect.stringMatching(
-                    new RegExp(`${bucketPrefix}/${giraffeREADME}`)
+                    new RegExp(`${prefix}/${giraffeREADME}`)
                   ),
                   location: expect.any(String),
                   versionId: expect.any(String),

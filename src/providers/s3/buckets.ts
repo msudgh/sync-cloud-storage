@@ -156,8 +156,8 @@ export const syncMetadata = async (
     const headCommand = await client.send(
       new HeadObjectCommand({
         Bucket: storage.name,
-        Key: storage.bucketPrefix
-          ? path.join(storage.bucketPrefix, `${file.Key}`)
+        Key: storage.prefix
+          ? path.join(storage.prefix, `${file.Key}`)
           : file.Key,
       })
     )

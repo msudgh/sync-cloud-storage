@@ -5,7 +5,7 @@ import { DeepPartial } from '../../src/types'
 
 export const sampleStorage: Storage = {
   name: 'my-static-site-assets',
-  bucketPrefix: 'animals',
+  prefix: 'animals',
   localPath: './assets/giraffe',
   actions: ['upload', 'delete'],
   acl: 'public-read',
@@ -21,7 +21,7 @@ const createBaseInputFixture = (): Required<Custom> => ({
         name: faker.internet.domainName(),
         localPath: faker.system.directoryPath(),
         actions: ['upload', 'delete'],
-        bucketPrefix: faker.lorem.word(),
+        prefix: faker.lorem.word(),
         enabled: faker.datatype.boolean(),
         acl: faker.helpers.arrayElement(objectCannedACLs),
         metadata: {
@@ -40,7 +40,7 @@ const createBaseInputFixture = (): Required<Custom> => ({
 export const createValidInputFixture = (
   localPath: string,
   name = '',
-  bucketPrefix = '',
+  prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
 ): Required<Custom> => {
   return {
@@ -53,7 +53,7 @@ export const createValidInputFixture = (
           ...sampleStorage,
           name,
           localPath,
-          bucketPrefix: bucketPrefix,
+          prefix: prefix,
         },
       ],
     },
@@ -63,7 +63,7 @@ export const createValidInputFixture = (
 export const createValidInputFixtureWithTags = (
   localPath: string,
   name = '',
-  bucketPrefix = '',
+  prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
 ): Required<Custom> => {
   return {
@@ -76,7 +76,7 @@ export const createValidInputFixtureWithTags = (
           ...sampleStorage,
           name,
           localPath,
-          bucketPrefix,
+          prefix,
           tags: {
             [faker.lorem.word()]: faker.lorem.word(),
           },
@@ -89,7 +89,7 @@ export const createValidInputFixtureWithTags = (
 export const createValidInputFixtureWithMetadata = (
   localPath: string,
   name = '',
-  bucketPrefix = '',
+  prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
 ): Required<Custom> => {
   return {
@@ -102,7 +102,7 @@ export const createValidInputFixtureWithMetadata = (
           ...sampleStorage,
           name,
           localPath,
-          bucketPrefix,
+          prefix,
           metadata: {
             [faker.lorem.word()]: faker.lorem.word(),
           },
@@ -142,7 +142,7 @@ export const createInvalidInputFixture = (
         name: faker.internet.domainName(),
         localPath: false,
         actions: 123,
-        bucketPrefix: 456,
+        prefix: 456,
         enabled: 'false',
         acl: undefined,
         metadata: 'key: value',

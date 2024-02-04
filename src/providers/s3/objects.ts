@@ -129,7 +129,7 @@ export const deleteObjects = async (
     const versions = await client.send(
       new ListObjectVersionsCommand({
         Bucket: storage.name,
-        Prefix: storage.bucketPrefix ? storage.bucketPrefix : undefined,
+        Prefix: storage.prefix ? storage.prefix : undefined,
         MaxKeys: 1000000000,
       })
     )
