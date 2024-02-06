@@ -7,6 +7,7 @@ import { getServerlessMock } from './mocks/serverless'
 import {
   createValidDisabledInputFixture,
   createValidInputFixture,
+  createValidInputFixtureWithACLBucketOwner,
   createValidInputFixtureWithMetadata,
   createValidInputFixtureWithTags,
   sampleStorage,
@@ -86,10 +87,10 @@ describe('SyncCloudStorage', () => {
         optionsMock,
         loggingMock
       )
-      const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
+      const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
 
-      expect(bucketsSpy).toHaveBeenCalledTimes(1)
+      expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
       expect(response).toEqual({ result: [] })
     })
 
@@ -122,7 +123,7 @@ describe('SyncCloudStorage', () => {
         loggingMock
       )
 
-      const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
+      const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
 
       const expectedResponse = {
@@ -134,12 +135,12 @@ describe('SyncCloudStorage', () => {
         ],
       }
 
-      expect(bucketsSpy).toHaveBeenCalledTimes(1)
+      expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
       expect(response).toEqual(expectedResponse)
     })
 
-    it('should sync when there is a fresh bucket', async () => {
-      const inputCustom = createValidInputFixture(
+    it('should sync when there is a new bucket and acl set to bucket owner', async () => {
+      const inputCustom = createValidInputFixtureWithACLBucketOwner(
         './assets/giraffe',
         sampleStorage.name
       )
@@ -155,10 +156,10 @@ describe('SyncCloudStorage', () => {
         inputCustom.syncCloudStorage.storages[0]
       )
 
-      const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
+      const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
 
-      expect(bucketsSpy).toHaveBeenCalledTimes(1)
+      expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
       const giraffeREADME = 'README.md'
 
@@ -223,10 +224,10 @@ describe('SyncCloudStorage', () => {
         inputCustom.syncCloudStorage.storages[0]
       )
 
-      const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
+      const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
 
-      expect(bucketsSpy).toHaveBeenCalledTimes(1)
+      expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
       const giraffeREADME = 'README.md'
       const expectedResponse = {
@@ -384,11 +385,11 @@ describe('SyncCloudStorage', () => {
         inputCustom.syncCloudStorage.storages[0]
       )
 
-      const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
+      const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
       const giraffeREADME = 'README.md'
 
-      expect(bucketsSpy).toHaveBeenCalledTimes(1)
+      expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
       const expectedFile = expect.objectContaining<LocalFile>({
         ETag: expect.any(String),
@@ -465,7 +466,7 @@ describe('SyncCloudStorage', () => {
         })
       )
 
-      const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
+      const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
 
       const expectedResponse = expect.objectContaining({
@@ -494,7 +495,7 @@ describe('SyncCloudStorage', () => {
         ]),
       })
 
-      expect(bucketsSpy).toHaveBeenCalledTimes(1)
+      expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
       expect(response).toEqual(expectedResponse)
 
       await deleteStorage(
@@ -531,10 +532,10 @@ describe('SyncCloudStorage', () => {
         })
       )
 
-      const bucketsSpy = jest.spyOn(syncCloudStorage, 'storages')
+      const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
 
-      expect(bucketsSpy).toHaveBeenCalledTimes(1)
+      expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
       const giraffeREADME = 'README.md'
 
@@ -596,6 +597,121 @@ describe('SyncCloudStorage', () => {
         syncCloudStorage.getS3Client(),
         inputCustom.syncCloudStorage.storages[0]
       )
+    })
+
+    it('should sync multiple storages with with all actions', async () => {
+      const inputCustom = createValidInputFixture(
+        './assets/giraffe-multiple',
+        sampleStorage.name
+      )
+      const inputCustom2 = createValidInputFixture(
+        './assets/giraffe-multiple',
+        'giraffe-bucket-2'
+      )
+      const {
+        syncCloudStorage: {
+          storages: [storage1],
+        },
+      } = inputCustom
+      const {
+        syncCloudStorage: {
+          storages: [storage2],
+        },
+      } = inputCustom2
+      const storages = [storage1, storage2]
+      const mockServerless = getServerlessMock(
+        {
+          ...inputCustom,
+          syncCloudStorage: { ...inputCustom.syncCloudStorage, storages },
+        },
+        __dirname
+      )
+      const syncCloudStorage = new SyncCloudStorage(
+        mockServerless,
+        optionsMock,
+        loggingMock
+      )
+
+      await setupStorage(syncCloudStorage.getS3Client(), storages[0])
+      await setupStorage(syncCloudStorage.getS3Client(), storages[1])
+
+      const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
+      const response = await syncCloudStorage.storages()
+
+      expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
+
+      const giraffeREADME = 'sub/README.md'
+
+      const expectedFile = expect.objectContaining<LocalFile>({
+        ETag: expect.any(String),
+        Key: giraffeREADME,
+        LastModified: expect.any(Date),
+        LocalPath: expect.stringMatching(giraffeREADME),
+        Size: expect.any(Number),
+      })
+
+      const expectedResponse = {
+        result: [
+          {
+            status: 'fulfilled',
+            value: {
+              deleted: expect.arrayContaining([]),
+              files: [expectedFile],
+              filesToDelete: expect.arrayContaining([]),
+              filesToUpload: expect.arrayContaining([
+                expect.stringContaining(giraffeREADME),
+              ]),
+              localFilesChecksum: expect.arrayContaining([
+                expect.stringContaining(giraffeREADME),
+              ]),
+              objects: expect.arrayContaining([]),
+              storage: storages[0],
+              storageObjectsChecksum: expect.arrayContaining([]),
+              uploaded: [
+                {
+                  storage: storages[0].name,
+                  etag: expect.any(String),
+                  key: giraffeREADME,
+                  location: expect.any(String),
+                  versionId: expect.any(String),
+                },
+              ],
+            },
+          },
+          {
+            status: 'fulfilled',
+            value: {
+              deleted: expect.arrayContaining([]),
+              files: [expectedFile],
+              filesToDelete: expect.arrayContaining([]),
+              filesToUpload: expect.arrayContaining([
+                expect.stringContaining(giraffeREADME),
+              ]),
+              localFilesChecksum: expect.arrayContaining([
+                expect.stringContaining(giraffeREADME),
+              ]),
+              objects: expect.arrayContaining([]),
+              storage: storages[1],
+              storageObjectsChecksum: expect.arrayContaining([]),
+              uploaded: [
+                {
+                  storage: storages[1].name,
+                  etag: expect.any(String),
+                  key: giraffeREADME,
+                  location: expect.any(String),
+                  versionId: expect.any(String),
+                },
+              ],
+            },
+          },
+        ],
+      }
+
+      expect(response).toEqual(expectedResponse)
+
+      for (const storage of storages) {
+        await deleteStorage(syncCloudStorage.getS3Client(), storage)
+      }
     })
   })
 })
