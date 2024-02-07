@@ -23,6 +23,7 @@ class SyncCloudStorage implements ServerlessPlugin {
   serverless!: Serverless
   options!: Serverless.Options
   hooks: ServerlessPlugin.Hooks
+  commands: ServerlessPlugin.Commands
   servicePath: string
   config: Custom
   logging: ServerlessPlugin.Logging
@@ -77,6 +78,7 @@ class SyncCloudStorage implements ServerlessPlugin {
     this._storages = this.config.syncCloudStorage.storages.filter(
       (bucket) => bucket.enabled
     )
+    this.commands = this.setCommands()
     this.hooks = this.setHooks()
   }
 
@@ -101,6 +103,23 @@ class SyncCloudStorage implements ServerlessPlugin {
   }
 
   /**
+   * Set commands.
+   * @returns {ServerlessPlugin.Commands} Commands
+   * @memberof SyncCloudStorage
+   *
+   * @example
+   * const commands = this.setCommands()
+   */
+  setCommands(): ServerlessPlugin.Commands {
+    return {
+      scs: {
+        usage: 'Sync Cloud Storage',
+        lifecycleEvents: ['storages', 'tags'],
+      },
+    }
+  }
+
+  /**
    * Set hooks.
    * @returns {ServerlessPlugin.Hooks} Hooks
    * @memberof SyncCloudStorage
@@ -113,10 +132,10 @@ class SyncCloudStorage implements ServerlessPlugin {
     const syncTagsHook = () => this.tags()
 
     return {
-      'before:offline:start:init': syncStoragesHook,
-      'scs:buckets': syncStoragesHook,
+      'scs:storages': syncStoragesHook,
       'scs:tags': syncTagsHook,
-      'before:deploy:deploy': () => syncStoragesHook(),
+      'before:offline:start:init': syncStoragesHook,
+      'before:deploy:deploy': syncStoragesHook,
     }
   }
 
@@ -173,9 +192,9 @@ class SyncCloudStorage implements ServerlessPlugin {
    * const result = await this.tags()
    */
   async tags(): TagsMethodPromiseResult {
-    const isPluginEnable = this.disableCheck().result
+    const isPluginDisable = this.disableCheck().result
 
-    if (!isPluginEnable) {
+    if (isPluginDisable) {
       return []
     }
 
