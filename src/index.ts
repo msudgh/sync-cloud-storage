@@ -6,7 +6,6 @@ import ServerlessPlugin from 'serverless/classes/Plugin'
 
 import { InvalidConfigError } from './errors'
 import { sync, syncMetadata, syncTags } from './providers/s3/buckets'
-// import { getCredentials } from './providers/s3/credentials'
 import { Custom, Storage, custom } from './schemas/input'
 import {
   IServerless,
