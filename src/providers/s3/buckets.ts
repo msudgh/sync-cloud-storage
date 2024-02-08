@@ -6,6 +6,7 @@ import {
   DeleteBucketCommand,
   DeletedObject,
   GetBucketTaggingCommand,
+  GetBucketTaggingOutput,
   HeadObjectCommand,
   ListBucketsCommand,
   MetadataDirective,
@@ -183,22 +184,35 @@ export const syncTags = async (
   storage: Storage
 ): Promise<TagsSyncResult> => {
   logger.info("Syncing storage's tags", { storage: storage.name })
+  let existingTagSet: GetBucketTaggingOutput = { TagSet: [] }
 
   try {
-    const existingTagSetCommand = new GetBucketTaggingCommand({
-      Bucket: storage.name,
-    })
-    const existingTagSet = await client.send(existingTagSetCommand)
+    try {
+      const existingTagSetCommand = new GetBucketTaggingCommand({
+        Bucket: storage.name,
+      })
+      existingTagSet = await client.send(existingTagSetCommand)
+    } catch (error) {
+      if ((error as Error).name === 'NoSuchTagSet') {
+        existingTagSet = { TagSet: [] }
+      } else {
+        logger.error('Failed to get existing tags', {
+          storage: storage.name,
+          error: JSON.stringify(error),
+        })
+      }
+    }
+
     const mergedTagSet = mergeTags(existingTagSet.TagSet, storage.tags ?? {})
 
-    const command = new PutBucketTaggingCommand({
-      Bucket: storage.name,
-      Tagging: {
-        TagSet: mergedTagSet,
-      },
-    })
-
-    await client.send(command)
+    await client.send(
+      new PutBucketTaggingCommand({
+        Bucket: storage.name,
+        Tagging: {
+          TagSet: mergedTagSet,
+        },
+      })
+    )
 
     logger.info("Synced storage's tags", {
       storage: storage.name,

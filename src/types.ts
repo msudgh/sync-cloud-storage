@@ -77,7 +77,7 @@ export interface MethodReturn<T = undefined> {
 export type MetadataSyncResult = Array<boolean>
 export type TagsSyncResult = MethodReturn<Tag[]>
 export type TagsSyncResults = Array<MethodReturn<Tag[]>>
-export type TagsMethodPromiseResult = Promise<TagsSyncResults>
+export type TagsMethodPromiseResult = PromiseFulfilledResult<TagsSyncResult>
 
 export type SyncMetadataReturn = Array<
   Pick<_Object, 'Key'> & {

@@ -7,12 +7,7 @@ import ServerlessPlugin from 'serverless/classes/Plugin'
 import { InvalidConfigError } from './errors'
 import { sync, syncMetadata, syncTags } from './providers/s3/buckets'
 import { Custom, Storage, custom } from './schemas/input'
-import {
-  IServerless,
-  MethodReturn,
-  TagsMethodPromiseResult,
-  TagsSyncResults,
-} from './types'
+import { IServerless, MethodReturn, TagsSyncResults } from './types'
 import logger from './utils/logger'
 
 /**
@@ -184,25 +179,22 @@ class SyncCloudStorage implements ServerlessPlugin {
   /**
    * Sync tags.
    * @private
-   * @returns {TagsMethodPromiseResult}
    * @memberof SyncCloudStorage
    * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
-   *
+   * @returns {Promise<TagsSyncResults>}
    * @example
    * const result = await this.tags()
    */
-  async tags(): TagsMethodPromiseResult {
+  async tags(): Promise<TagsSyncResults> {
     const isPluginDisable = this.disableCheck().result
 
     if (isPluginDisable) {
-      return []
+      return [{ error: 'Plugin is disabled' }]
     }
 
-    const syncedStorages = (await Promise.allSettled(
+    return (await Promise.allSettled(
       this._storages.map((bucket) => syncTags(this.client, bucket))
     )) as TagsSyncResults
-
-    return syncedStorages
   }
 
   /**

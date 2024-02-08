@@ -18,7 +18,7 @@ import { InvalidConfigError } from '../src/errors'
 import { createStorage, deleteStorage } from '../src/providers/s3/buckets'
 import * as objects from '../src/providers/s3/objects'
 import { Storage } from '../src/schemas/input'
-import { LocalFile } from '../src/types'
+import { LocalFile, TagsMethodPromiseResult } from '../src/types'
 import logger from '../src/utils/logger'
 import { mergeTags } from '../src/utils/tags'
 
@@ -308,9 +308,15 @@ describe('SyncCloudStorage', () => {
 
       expect(tagsSpy).toHaveBeenCalledTimes(1)
 
-      for (const { result } of newTags) {
-        expect(result).toBe(expectedTags)
-        expect(result).toBeGreaterThanOrEqual(1)
+      for (const newTag of newTags) {
+        const { status, value } = newTag as TagsMethodPromiseResult
+        const { result, error, storage } = value
+
+        expect(status).toBe('fulfilled')
+        expect(error).toBe(undefined)
+        expect(storage).toEqual(inputCustom.syncCloudStorage.storages[0])
+        expect(result).toEqual(expectedTags)
+        expect(result?.length).toBeGreaterThanOrEqual(1)
 
         expect(
           await deleteStorage(
