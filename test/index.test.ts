@@ -329,6 +329,50 @@ describe('SyncCloudStorage', () => {
       }
     })
 
+    it('should not sync tags when plugin is disabled', async () => {
+      const inputCustom = createValidDisabledInputFixture()
+      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const syncCloudStorage = new SyncCloudStorage(
+        mockServerless,
+        optionsMock,
+        loggingMock
+      )
+
+      const tagsSpy = jest.spyOn(syncCloudStorage, 'tags')
+      const newTags = await syncCloudStorage.tags()
+
+      expect(tagsSpy).toHaveBeenCalledTimes(1)
+      expect(newTags).toEqual([{ error: 'Plugin is disabled' }])
+    })
+
+    it("should not sync tags when storage doesn't exist", async () => {
+      const inputCustom = createValidInputFixture(
+        './assets/giraffe',
+        'non-existent-bucket'
+      )
+      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const syncCloudStorage = new SyncCloudStorage(
+        mockServerless,
+        optionsMock,
+        loggingMock
+      )
+
+      const tagsSpy = jest.spyOn(syncCloudStorage, 'tags')
+      const response = await syncCloudStorage.tags()
+
+      const expectedResponse = [
+        {
+          status: 'fulfilled',
+          value: {
+            error: Error('StorageNotFound'),
+          },
+        },
+      ]
+
+      expect(tagsSpy).toHaveBeenCalledTimes(1)
+      expect(response).toEqual(expectedResponse)
+    })
+
     it('should sync metadata', async () => {
       const inputCustom = createValidInputFixtureWithMetadata(
         './assets/giraffe',

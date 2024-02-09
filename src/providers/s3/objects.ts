@@ -63,11 +63,7 @@ export const uploadObjects = async (
   for (const checksum of filesToUpload) {
     const fileToUpload = localFiles.find(
       (file) => getChecksum(file.Key, file.ETag) === checksum
-    )
-
-    if (!fileToUpload) {
-      continue
-    }
+    ) as LocalFile
 
     logger.info('Upload file to bucket', {
       storage: storage.name,
@@ -116,8 +112,7 @@ export const uploadObjects = async (
 export const deleteObjects = async (
   client: S3Client,
   storage: Storage,
-  objects: _Object[],
-  retry = 0
+  objects: _Object[]
 ): Promise<DeletedObject[]> => {
   const keys = [...objects].map((object) => object.Key as string)
 
@@ -126,60 +121,51 @@ export const deleteObjects = async (
     keys,
   })
 
-  try {
-    const versions = await client.send(
-      new ListObjectVersionsCommand({
+  const versions = await client.send(
+    new ListObjectVersionsCommand({
+      Bucket: storage.name,
+      Prefix: storage.prefix ? storage.prefix : undefined,
+    })
+  )
+
+  const deleteMarkers = (versions.DeleteMarkers ?? []).map((marker) => ({
+    Key: marker.Key,
+    VersionId: marker.VersionId,
+  }))
+
+  const versionsToDelete = (versions.Versions ?? []).map((version) => ({
+    Key: version.Key,
+    VersionId: version.VersionId,
+  }))
+
+  const objectsToDelete = [
+    ...objects.map((object) => ({
+      Key: object.Key,
+      VersionId: object.ETag,
+    })),
+    ...deleteMarkers,
+    ...versionsToDelete,
+  ]
+
+  if (objectsToDelete.length > 0) {
+    const { Deleted: deleted = [] } = await client.send(
+      new DeleteObjectsCommand({
         Bucket: storage.name,
-        Prefix: storage.prefix ? storage.prefix : undefined,
-        MaxKeys: 1000000000,
+        Delete: {
+          Objects: objectsToDelete,
+          Quiet: false,
+        },
       })
     )
 
-    const deleteMarkers = (versions.DeleteMarkers ?? []).map((marker) => ({
-      Key: marker.Key,
-      VersionId: marker.VersionId,
-    }))
+    logger.info(`Permanently deleted all versions of object.`, {
+      storage: storage.name,
+    })
 
-    const versionsToDelete = (versions.Versions ?? []).map((version) => ({
-      Key: version.Key,
-      VersionId: version.VersionId,
-    }))
+    return deleted
+  } else {
+    logger.info(`No objects to delete.`, { storage: storage.name })
 
-    const objectsToDelete = [
-      ...objects.map((object) => ({
-        Key: object.Key,
-        VersionId: object.ETag,
-      })),
-      ...deleteMarkers,
-      ...versionsToDelete,
-    ]
-
-    if (objectsToDelete.length > 0) {
-      const { Deleted: deleted = [] } = await client.send(
-        new DeleteObjectsCommand({
-          Bucket: storage.name,
-          Delete: {
-            Objects: objectsToDelete,
-            Quiet: false,
-          },
-        })
-      )
-
-      logger.info(`Permanently deleted all versions of object.`, {
-        storage: storage.name,
-      })
-
-      return deleted
-    } else {
-      logger.info(`No objects to delete.`, { storage: storage.name })
-
-      return []
-    }
-  } catch (error) {
-    if (retry >= 3) {
-      throw error
-    }
-
-    return deleteObjects(client, storage, objects, retry + 1)
+    return []
   }
 }

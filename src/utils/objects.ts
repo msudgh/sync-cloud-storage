@@ -31,21 +31,21 @@ export const extractAfterSubdirectory = (
 ) => {
   // Normalize both paths to ensure consistent separators
   const normalizedFullPath = path.normalize(fullPath)
-  const normalizedSubdirectory = path.normalize(subdirectory)
+  const normalizedLocalPath = path.normalize(subdirectory)
 
   // Find the start index of the subdirectory in the full path
-  const startIndex = normalizedFullPath.indexOf(normalizedSubdirectory)
+  const startIndex = normalizedFullPath.indexOf(normalizedLocalPath)
 
-  if (startIndex !== -1) {
-    // Calculate the end index of the subdirectory within the full path
-    const endIndex = startIndex + normalizedSubdirectory.length + 1
+  // Assuming subdirectory is always part of fullPath, calculate the end index
+  const endIndex = startIndex + normalizedLocalPath.length
 
-    // Extract the part of the full path after the subdirectory
-    const afterSubdirectory = normalizedFullPath.substring(endIndex)
+  // Extract the part of the full path after the subdirectory
+  // Check if endIndex is at the path's end or adjust for separator
+  const afterSubdirectory =
+    endIndex >= normalizedFullPath.length
+      ? ''
+      : normalizedFullPath.substring(endIndex + 1)
 
-    // Normalize the extracted path to clean up any leading separators
-    return path.normalize(afterSubdirectory)
-  } else {
-    return '' // Subdirectory not found in the full path
-  }
+  // Return the extracted path part, ensuring no leading separators
+  return afterSubdirectory ? path.normalize(afterSubdirectory) : ''
 }

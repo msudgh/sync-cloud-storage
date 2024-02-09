@@ -37,25 +37,11 @@ class SyncCloudStorage implements ServerlessPlugin {
     options: Serverless.Options,
     logging: ServerlessPlugin.Logging
   ) {
-    if (!serverless) {
-      throw new Error('Serverless instance is required')
-    }
-
     // Typing with *as* makes testing enable to use a DI version of instance
     this.serverless = serverless as unknown as Serverless
-    this.servicePath = this.serverless.service.serverless.config.servicePath
-
-    if (!options) {
-      throw new Error("Options can't be undefined")
-    }
-
     this.options = options
-
-    if (!logging) {
-      throw new Error("Logging can't be undefined")
-    }
-
     this.logging = logging
+    this.servicePath = this.serverless.service.serverless.config.servicePath
 
     const config = this.serverless.service.custom
     const validatedConfig = custom.safeParse(config)
@@ -207,10 +193,6 @@ class SyncCloudStorage implements ServerlessPlugin {
    * await this.onExit()
    */
   async onExit(): Promise<void> {
-    if (this.taskProcess) {
-      this.taskProcess.remove()
-    }
-
     if (this.client) {
       this.client.destroy()
     }

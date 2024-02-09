@@ -184,6 +184,14 @@ export const syncTags = async (
   storage: Storage
 ): Promise<TagsSyncResult> => {
   logger.info("Syncing storage's tags", { storage: storage.name })
+
+  const { name } = storage
+  const storageExist = await storageExists(client, name)
+
+  if (!storageExist) {
+    return { error: new Error('StorageNotFound') }
+  }
+
   let existingTagSet: GetBucketTaggingOutput = { TagSet: [] }
 
   try {
