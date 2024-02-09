@@ -28,8 +28,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --no-cache --coverage",
     "format": "prettier --write \"**/*.{ts,js,md,json,yaml,yml}\"",
-    "lint": "eslint . --ext .ts --ext .js",
-    "lint:fix": "eslint . --fix --ext .ts --ext .js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "docs:build": "pnpm run build && rm -rf ./docs && ./node_modules/.bin/jsdoc -c jsdoc.json",
     "docs:start": "pnpm run docs:build && ./node_modules/.bin/http-server -c-1 -o docs"
   },
@@ -67,7 +67,7 @@
   },
   "lint-staged": {
     "*.{ts,js}": [
-      "pnpm run lint:fix",
+      "pnpm run lint",
       "pnpm run format"
     ],
     "*.{json,md,yaml}": [

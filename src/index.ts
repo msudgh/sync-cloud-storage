@@ -6,14 +6,8 @@ import ServerlessPlugin from 'serverless/classes/Plugin'
 
 import { InvalidConfigError } from './errors'
 import { sync, syncMetadata, syncTags } from './providers/s3/buckets'
-// import { getCredentials } from './providers/s3/credentials'
 import { Custom, Storage, custom } from './schemas/input'
-import {
-  IServerless,
-  MethodReturn,
-  TagsMethodPromiseResult,
-  TagsSyncResults,
-} from './types'
+import { IServerless, MethodReturn, TagsSyncResults } from './types'
 import logger from './utils/logger'
 
 /**
@@ -24,6 +18,7 @@ class SyncCloudStorage implements ServerlessPlugin {
   serverless!: Serverless
   options!: Serverless.Options
   hooks: ServerlessPlugin.Hooks
+  commands: ServerlessPlugin.Commands
   servicePath: string
   config: Custom
   logging: ServerlessPlugin.Logging
@@ -42,25 +37,11 @@ class SyncCloudStorage implements ServerlessPlugin {
     options: Serverless.Options,
     logging: ServerlessPlugin.Logging
   ) {
-    if (!serverless) {
-      throw new Error('Serverless instance is required')
-    }
-
     // Typing with *as* makes testing enable to use a DI version of instance
     this.serverless = serverless as unknown as Serverless
-    this.servicePath = this.serverless.service.serverless.config.servicePath
-
-    if (!options) {
-      throw new Error("Options can't be undefined")
-    }
-
     this.options = options
-
-    if (!logging) {
-      throw new Error("Logging can't be undefined")
-    }
-
     this.logging = logging
+    this.servicePath = this.serverless.service.serverless.config.servicePath
 
     const config = this.serverless.service.custom
     const validatedConfig = custom.safeParse(config)
@@ -78,6 +59,7 @@ class SyncCloudStorage implements ServerlessPlugin {
     this._storages = this.config.syncCloudStorage.storages.filter(
       (bucket) => bucket.enabled
     )
+    this.commands = this.setCommands()
     this.hooks = this.setHooks()
   }
 
@@ -102,6 +84,23 @@ class SyncCloudStorage implements ServerlessPlugin {
   }
 
   /**
+   * Set commands.
+   * @returns {ServerlessPlugin.Commands} Commands
+   * @memberof SyncCloudStorage
+   *
+   * @example
+   * const commands = this.setCommands()
+   */
+  setCommands(): ServerlessPlugin.Commands {
+    return {
+      scs: {
+        usage: 'Sync Cloud Storage',
+        lifecycleEvents: ['storages', 'tags'],
+      },
+    }
+  }
+
+  /**
    * Set hooks.
    * @returns {ServerlessPlugin.Hooks} Hooks
    * @memberof SyncCloudStorage
@@ -114,10 +113,10 @@ class SyncCloudStorage implements ServerlessPlugin {
     const syncTagsHook = () => this.tags()
 
     return {
-      'before:offline:start:init': syncStoragesHook,
-      'scs:buckets': syncStoragesHook,
+      'scs:storages': syncStoragesHook,
       'scs:tags': syncTagsHook,
-      'before:deploy:deploy': () => syncStoragesHook(),
+      'before:offline:start:init': syncStoragesHook,
+      'before:deploy:deploy': syncStoragesHook,
     }
   }
 
@@ -166,25 +165,22 @@ class SyncCloudStorage implements ServerlessPlugin {
   /**
    * Sync tags.
    * @private
-   * @returns {TagsMethodPromiseResult}
    * @memberof SyncCloudStorage
    * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
-   *
+   * @returns {Promise<TagsSyncResults>}
    * @example
    * const result = await this.tags()
    */
-  async tags(): TagsMethodPromiseResult {
-    const isPluginEnable = this.disableCheck().result
+  async tags(): Promise<TagsSyncResults> {
+    const isPluginDisable = this.disableCheck().result
 
-    if (!isPluginEnable) {
-      return []
+    if (isPluginDisable) {
+      return [{ error: 'Plugin is disabled' }]
     }
 
-    const syncedStorages = (await Promise.allSettled(
+    return (await Promise.allSettled(
       this._storages.map((bucket) => syncTags(this.client, bucket))
     )) as TagsSyncResults
-
-    return syncedStorages
   }
 
   /**
@@ -197,10 +193,6 @@ class SyncCloudStorage implements ServerlessPlugin {
    * await this.onExit()
    */
   async onExit(): Promise<void> {
-    if (this.taskProcess) {
-      this.taskProcess.remove()
-    }
-
     if (this.client) {
       this.client.destroy()
     }

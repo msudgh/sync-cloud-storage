@@ -8,7 +8,7 @@ export const sampleStorage: Storage = {
   prefix: 'animals',
   localPath: './assets/giraffe',
   actions: ['upload', 'delete'],
-  acl: 'public-read',
+  acl: undefined,
   enabled: true,
   tags: {},
 }
@@ -54,6 +54,30 @@ export const createValidInputFixture = (
           name,
           localPath,
           prefix: prefix,
+        },
+      ],
+    },
+  }
+}
+
+export const createValidInputFixtureWithACLBucketOwner = (
+  localPath: string,
+  name = '',
+  prefix = '',
+  endpoint = process.env.AWS_ENDPOINT_URL
+): Required<Custom> => {
+  return {
+    syncCloudStorage: {
+      disabled: false,
+      endpoint: endpoint,
+      offline: true,
+      storages: [
+        {
+          ...sampleStorage,
+          name,
+          localPath,
+          prefix: prefix,
+          acl: 'bucket-owner-full-control',
         },
       ],
     },

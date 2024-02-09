@@ -6,6 +6,7 @@ import {
   DeleteBucketCommand,
   DeletedObject,
   GetBucketTaggingCommand,
+  GetBucketTaggingOutput,
   HeadObjectCommand,
   ListBucketsCommand,
   MetadataDirective,
@@ -41,7 +42,7 @@ export const storageExists = async (
 }
 
 /**
- * Syncs storage with upload and delete actions by comparing local file and storage's object checksums.
+ * Syncs storage with upload and delete actions by comparing local file and storage's object `${Key}-${ETag}`.
  * @memberof S3
  * @param {S3Client} client
  * @param {Storage} storage
@@ -125,7 +126,6 @@ export const syncMetadata = async (
   client: S3Client,
   storage: Storage
 ): Promise<SyncMetadataReturn> => {
-  // Get list of existing objects
   const existingObjects = await listObjects(client, storage)
   const syncedMetadata = []
 
@@ -142,6 +142,7 @@ export const syncMetadata = async (
       ContentType: getContentType(file.Key),
       MetadataDirective: MetadataDirective.REPLACE,
       Metadata: storage.metadata,
+      ACL: storage.acl,
     })
 
     const result = await client.send(copyCommand)
@@ -152,7 +153,6 @@ export const syncMetadata = async (
       result,
     })
 
-    // Get Object metadata
     const headCommand = await client.send(
       new HeadObjectCommand({
         Bucket: storage.name,
@@ -185,21 +185,42 @@ export const syncTags = async (
 ): Promise<TagsSyncResult> => {
   logger.info("Syncing storage's tags", { storage: storage.name })
 
+  const { name } = storage
+  const storageExist = await storageExists(client, name)
+
+  if (!storageExist) {
+    return { error: new Error('StorageNotFound') }
+  }
+
+  let existingTagSet: GetBucketTaggingOutput = { TagSet: [] }
+
   try {
-    const existingTagSetCommand = new GetBucketTaggingCommand({
-      Bucket: storage.name,
-    })
-    const existingTagSet = await client.send(existingTagSetCommand)
+    try {
+      const existingTagSetCommand = new GetBucketTaggingCommand({
+        Bucket: storage.name,
+      })
+      existingTagSet = await client.send(existingTagSetCommand)
+    } catch (error) {
+      if ((error as Error).name === 'NoSuchTagSet') {
+        existingTagSet = { TagSet: [] }
+      } else {
+        logger.error('Failed to get existing tags', {
+          storage: storage.name,
+          error: JSON.stringify(error),
+        })
+      }
+    }
+
     const mergedTagSet = mergeTags(existingTagSet.TagSet, storage.tags ?? {})
 
-    const command = new PutBucketTaggingCommand({
-      Bucket: storage.name,
-      Tagging: {
-        TagSet: mergedTagSet,
-      },
-    })
-
-    await client.send(command)
+    await client.send(
+      new PutBucketTaggingCommand({
+        Bucket: storage.name,
+        Tagging: {
+          TagSet: mergedTagSet,
+        },
+      })
+    )
 
     logger.info("Synced storage's tags", {
       storage: storage.name,

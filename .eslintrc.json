@@ -10,7 +10,8 @@
   "plugins": ["import"],
   "parserOptions": {
     "ecmaVersion": 2023,
-    "sourceType": "module"
+    "sourceType": "module",
+    "project": "./tsconfig.json"
   },
   "rules": {
     "semi": "off",
@@ -52,7 +53,8 @@
     ],
     "no-console": 2,
     "no-unused-vars": 2,
-    "@typescript-eslint/no-unused-vars": ["error"]
+    "@typescript-eslint/no-unused-vars": ["error"],
+    "import/named": "error"
   },
   "env": {
     "node": true
@@ -64,7 +66,11 @@
     "import/resolver": {
       "typescript": {
         "alwaysTryTypes": true,
-        "project": "./tsconfig.json"
+        "project": [
+          "./tsconfig.json",
+          "./src/tsconfig.json",
+          "./test/tsconfig.json"
+        ]
       }
     }
   }
