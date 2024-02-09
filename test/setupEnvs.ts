@@ -1,29 +1,41 @@
 import { loadSharedConfigFiles } from '@smithy/shared-ini-file-loader'
 
+import logger from '../src/utils/logger'
+
+const defaultProfile = 'default'
+
+const checkEnvVariables = (env: NodeJS.ProcessEnv) => {
+  return env.AWS_REGION && env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
+}
+
 export const setupEnvs = async (): Promise<void> => {
   const { credentialsFile, configFile } = await loadSharedConfigFiles({
     ignoreCache: true,
   })
 
-  const profile = process.env.AWS_PROFILE ?? 'default'
+  const profile = process.env.AWS_PROFILE ?? defaultProfile
   const credentials = credentialsFile[profile]
   const config = configFile[profile]
 
-  if (credentials && config) {
-    const { aws_access_key_id, aws_secret_access_key, aws_session_token } =
-      credentials
-    const { region } = config
+  if (!credentials && !config && checkEnvVariables(process.env)) {
+    logger.info(
+      "AWS Region & Credentials not found in '~/.aws/credentials & '~/.aws/config'!"
+    )
+    logger.info('Loaded AWS Region & Credentials from environment variables!')
+    return
+  }
 
-    if (
-      aws_access_key_id &&
-      aws_secret_access_key &&
-      aws_session_token &&
-      region
-    ) {
-      process.env.AWS_ACCESS_KEY_ID = aws_access_key_id
-      process.env.AWS_SECRET_ACCESS_KEY = aws_secret_access_key
-      process.env.AWS_SESSION_TOKEN = aws_session_token
-      process.env.AWS_REGION = region
-    }
+  logger.info('Loaded AWS Region & Credentials from AWS config files!')
+
+  const {
+    aws_access_key_id: awsAccessKeyID,
+    aws_secret_access_key: awsSecretAccessKey,
+  } = credentials
+  const { region } = config
+
+  if (region && awsAccessKeyID && awsSecretAccessKey) {
+    process.env.AWS_REGION = region
+    process.env.AWS_ACCESS_KEY_ID = awsAccessKeyID
+    process.env.AWS_SECRET_ACCESS_KEY = awsSecretAccessKey
   }
 }

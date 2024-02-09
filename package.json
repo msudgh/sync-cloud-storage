@@ -24,12 +24,13 @@
     "prepare": "is-ci || husky",
     "build": "rm -rf ./dist && tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json -w",
-    "test": "jest --verbose --no-cache",
-    "test:watch": "jest --no-cache --watch",
+    "build:type-check": "tsc -p tsconfig.build.json --noEmit",
+    "test": "jest --verbose",
+    "test:watch": "jest --watch",
     "test:coverage": "jest --no-cache --coverage",
     "format": "prettier --write \"**/*.{ts,js,md,json,yaml,yml}\"",
-    "lint": "eslint . --ext .ts --ext .js",
-    "lint:fix": "eslint . --fix --ext .ts --ext .js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "docs:build": "pnpm run build && rm -rf ./docs && ./node_modules/.bin/jsdoc -c jsdoc.json",
     "docs:start": "pnpm run docs:build && ./node_modules/.bin/http-server -c-1 -o docs",
     "preversion": "pnpm run build && pnpm run format"
@@ -63,6 +64,7 @@
     "@aws-sdk/client-s3": "3.502.0",
     "@aws-sdk/lib-storage": "3.502.0",
     "mrmime": "2.0.0",
+    "winston": "^3.11.0",
     "zod": "3.22.4"
   },
   "lint-staged": {
@@ -70,11 +72,11 @@
       "pnpm test"
     ],
     "*.{ts,js}": [
-      "npm run lint:fix",
-      "npm run format"
+      "pnpm run lint",
+      "pnpm run format"
     ],
     "*.{json,md,yaml}": [
-      "npm run format"
+      "pnpm run format"
     ]
   }
 }

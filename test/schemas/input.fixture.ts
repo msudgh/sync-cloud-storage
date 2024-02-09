@@ -1,16 +1,14 @@
 import { faker } from '@faker-js/faker'
 
-import { Custom, ObjectCannedACLs, Storage } from '../../src/schemas/input'
+import { Custom, Storage, objectCannedACLs } from '../../src/schemas/input'
 import { DeepPartial } from '../../src/types'
 
-export const sampleStorageName = 'my-static-site-assets'
 export const sampleStorage: Storage = {
-  name: sampleStorageName,
-  bucketPrefix: 'animals',
+  name: 'my-static-site-assets',
+  prefix: 'animals',
   localPath: './assets/giraffe',
   actions: ['upload', 'delete'],
-  acl: 'public-read',
-  deleteRemoved: true,
+  acl: undefined,
   enabled: true,
   tags: {},
 }
@@ -23,11 +21,9 @@ const createBaseInputFixture = (): Required<Custom> => ({
         name: faker.internet.domainName(),
         localPath: faker.system.directoryPath(),
         actions: ['upload', 'delete'],
-        bucketPrefix: faker.lorem.word(),
+        prefix: faker.lorem.word(),
         enabled: faker.datatype.boolean(),
-        deleteRemoved: faker.datatype.boolean(),
-        acl: faker.helpers.arrayElement(ObjectCannedACLs),
-        defaultContentType: faker.system.mimeType(),
+        acl: faker.helpers.arrayElement(objectCannedACLs),
         metadata: {
           exampleKey: faker.lorem.word(),
         },
@@ -41,10 +37,10 @@ const createBaseInputFixture = (): Required<Custom> => ({
   },
 })
 
-export const createValidOfflineInputFixture = (
+export const createValidInputFixture = (
   localPath: string,
-  name = sampleStorageName,
-  bucketPrefix = '',
+  name = '',
+  prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
 ): Required<Custom> => {
   return {
@@ -57,17 +53,41 @@ export const createValidOfflineInputFixture = (
           ...sampleStorage,
           name,
           localPath,
-          bucketPrefix,
+          prefix: prefix,
         },
       ],
     },
   }
 }
 
-export const createValidOfflineInputFixtureWithTags = (
+export const createValidInputFixtureWithACLBucketOwner = (
   localPath: string,
-  name = sampleStorageName,
-  bucketPrefix = '',
+  name = '',
+  prefix = '',
+  endpoint = process.env.AWS_ENDPOINT_URL
+): Required<Custom> => {
+  return {
+    syncCloudStorage: {
+      disabled: false,
+      endpoint: endpoint,
+      offline: true,
+      storages: [
+        {
+          ...sampleStorage,
+          name,
+          localPath,
+          prefix: prefix,
+          acl: 'bucket-owner-full-control',
+        },
+      ],
+    },
+  }
+}
+
+export const createValidInputFixtureWithTags = (
+  localPath: string,
+  name = '',
+  prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
 ): Required<Custom> => {
   return {
@@ -80,7 +100,7 @@ export const createValidOfflineInputFixtureWithTags = (
           ...sampleStorage,
           name,
           localPath,
-          bucketPrefix,
+          prefix,
           tags: {
             [faker.lorem.word()]: faker.lorem.word(),
           },
@@ -90,10 +110,10 @@ export const createValidOfflineInputFixtureWithTags = (
   }
 }
 
-export const createValidOfflineInputFixtureWithMetadata = (
+export const createValidInputFixtureWithMetadata = (
   localPath: string,
-  name = sampleStorageName,
-  bucketPrefix = '',
+  name = '',
+  prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
 ): Required<Custom> => {
   return {
@@ -106,78 +126,7 @@ export const createValidOfflineInputFixtureWithMetadata = (
           ...sampleStorage,
           name,
           localPath,
-          bucketPrefix,
-          metadata: {
-            [faker.lorem.word()]: faker.lorem.word(),
-          },
-        },
-      ],
-    },
-  }
-}
-
-export const createValidAWSInputFixture = (
-  localPath: string,
-  name = sampleStorageName,
-  bucketPrefix = ''
-): Required<Custom> => {
-  return {
-    syncCloudStorage: {
-      disabled: false,
-      endpoint: undefined,
-      offline: false,
-      storages: [
-        {
-          ...sampleStorage,
-          name,
-          localPath,
-          bucketPrefix,
-        },
-      ],
-    },
-  }
-}
-
-export const createValidAWSInputFixtureWithTags = (
-  localPath: string,
-  name = sampleStorageName,
-  bucketPrefix = ''
-): Required<Custom> => {
-  return {
-    syncCloudStorage: {
-      disabled: false,
-      endpoint: undefined,
-      offline: false,
-      storages: [
-        {
-          ...sampleStorage,
-          name,
-          localPath,
-          bucketPrefix,
-          tags: {
-            [faker.lorem.word()]: faker.lorem.word(),
-          },
-        },
-      ],
-    },
-  }
-}
-export const createValidAWSInputFixtureWithMetadata = (
-  localPath: string,
-  name = sampleStorageName,
-  bucketPrefix = ''
-): Required<Custom> => {
-  return {
-    syncCloudStorage: {
-      disabled: false,
-      endpoint: undefined,
-      offline: false,
-      storages: [
-        {
-          ...sampleStorage,
-          name,
-          localPath,
-          bucketPrefix,
+          prefix,
           metadata: {
             [faker.lorem.word()]: faker.lorem.word(),
           },
@@ -217,11 +166,9 @@ export const createInvalidInputFixture = (
         name: faker.internet.domainName(),
         localPath: false,
         actions: 123,
-        bucketPrefix: 456,
+        prefix: 456,
         enabled: 'false',
-        deleteRemoved: 'remove',
         acl: undefined,
-        defaultContentType: false,
         metadata: 'key: value',
         tags: [],
       },

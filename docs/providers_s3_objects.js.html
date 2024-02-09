@@ -35,8 +35,7 @@ exports.deleteObjects = exports.uploadObjects = exports.listObjects = void 0;
 const fs_1 = __importDefault(require("fs"));
 const client_s3_1 = require("@aws-sdk/client-s3");
 const lib_storage_1 = require("@aws-sdk/lib-storage");
-const mrmime_1 = require("mrmime");
-const errors_1 = require("../../errors");
+const logger_1 = __importDefault(require("../../utils/logger"));
 const objects_1 = require("../../utils/objects");
 /**
  * Lists all objects in a bucket.
@@ -46,23 +45,18 @@ const objects_1 = require("../../utils/objects");
  * @returns {Promise&lt;_Object[]>}
  */
 const listObjects = async (client, storage) => {
-    console.log('List objects in bucket', {
+    logger_1.default.info('List objects in bucket', {
         name: storage.name,
     });
-    try {
-        const command = new client_s3_1.ListObjectsV2Command({
-            Bucket: storage.name,
-        });
-        const { Contents = [] } = await client.send(command);
-        console.log('Storage objects', {
-            name: storage.name,
-            objects: Contents,
-        });
-        return Contents;
-    }
-    catch (error) {
-        throw (0, errors_1.handleMethodError)(error, storage);
-    }
+    const command = new client_s3_1.ListObjectsV2Command({
+        Bucket: storage.name,
+    });
+    const { Contents: contents = [] } = await client.send(command);
+    logger_1.default.info('Storage objects', {
+        storage: storage.name,
+        storageContents: contents,
+    });
+    return contents;
 };
 exports.listObjects = listObjects;
 /**
@@ -80,38 +74,33 @@ const uploadObjects = async (client, storage, localFiles, filesToUpload) => {
         if (!fileToUpload) {
             continue;
         }
-        console.log('Upload file to bucket', {
-            name: storage.name,
-            Key: fileToUpload.Key,
+        logger_1.default.info('Upload file to bucket', {
+            storage: storage.name,
+            key: fileToUpload.Key,
             checksum,
         });
-        try {
-            const command = new lib_storage_1.Upload({
-                client,
-                params: {
-                    Bucket: storage.name,
-                    Key: fileToUpload.Key,
-                    Body: fs_1.default.createReadStream(fileToUpload.LocalPath),
-                    ContentType: (0, mrmime_1.lookup)(fileToUpload.LocalPath) ?? undefined,
-                },
-            });
-            console.log('Uploaded file to bucket', {
-                name: storage.name,
+        const command = new lib_storage_1.Upload({
+            client,
+            params: {
+                Bucket: storage.name,
                 Key: fileToUpload.Key,
-                command,
-            });
-            const result = await command.done();
-            uploadedObjects.push({
-                Key: result.Key,
-                ETag: result.ETag,
-                VersionId: result.VersionId,
-                Bucket: result.Bucket,
-                Location: result.Location,
-            });
-        }
-        catch (error) {
-            (0, errors_1.handleMethodError)(error, storage);
-        }
+                Body: fs_1.default.createReadStream(fileToUpload.LocalPath),
+                ContentType: (0, objects_1.getContentType)(fileToUpload.Key),
+                ACL: storage.acl,
+            },
+        });
+        logger_1.default.info('Uploaded file to bucket', {
+            storage: storage.name,
+            Key: fileToUpload.Key,
+        });
+        const result = await command.done();
+        uploadedObjects.push({
+            key: result.Key,
+            etag: result.ETag,
+            versionId: result.VersionId,
+            storage: result.Bucket,
+            location: result.Location,
+        });
     }
     return uploadedObjects;
 };
@@ -124,17 +113,18 @@ exports.uploadObjects = uploadObjects;
  * @param {_Object[]} objects
  * @returns {Promise&lt;DeletedObject[]>}
  */
-const deleteObjects = async (client, storage, objects) => {
+const deleteObjects = async (client, storage, objects, retry = 0) => {
     const keys = [...objects].map((object) => object.Key);
-    console.log('Delete following objects from bucket', {
-        bucket: storage.name,
+    logger_1.default.info('Delete following objects from bucket', {
+        storage: storage.name,
         keys,
     });
     try {
-        const listVersionsParams = {
+        const versions = await client.send(new client_s3_1.ListObjectVersionsCommand({
             Bucket: storage.name,
-        };
-        const versions = await client.send(new client_s3_1.ListObjectVersionsCommand(listVersionsParams));
+            Prefix: storage.prefix ? storage.prefix : undefined,
+            MaxKeys: 1000000000,
+        }));
         const deleteMarkers = (versions.DeleteMarkers ?? []).map((marker) => ({
             Key: marker.Key,
             VersionId: marker.VersionId,
@@ -152,25 +142,28 @@ const deleteObjects = async (client, storage, objects) => {
             ...versionsToDelete,
         ];
         if (objectsToDelete.length > 0) {
-            const deleteParams = {
+            const { Deleted: deleted = [] } = await client.send(new client_s3_1.DeleteObjectsCommand({
                 Bucket: storage.name,
                 Delete: {
                     Objects: objectsToDelete,
                     Quiet: false,
                 },
-            };
-            const { Deleted = [] } = await client.send(new client_s3_1.DeleteObjectsCommand(deleteParams));
-            console.log(`Permanently deleted all versions of object.`);
-            return Deleted;
+            }));
+            logger_1.default.info(`Permanently deleted all versions of object.`, {
+                storage: storage.name,
+            });
+            return deleted;
         }
         else {
-            console.log(`No objects to delete.`);
+            logger_1.default.info(`No objects to delete.`, { storage: storage.name });
             return [];
         }
     }
     catch (error) {
-        (0, errors_1.handleMethodError)(error, storage);
-        return [];
+        if (retry >= 3) {
+            throw error;
+        }
+        return (0, exports.deleteObjects)(client, storage, objects, retry + 1);
     }
 };
 exports.deleteObjects = deleteObjects;
@@ -184,13 +177,13 @@ exports.deleteObjects = deleteObjects;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Classes</h3><ul><li><a href="module-SyncCloudStorage-SyncCloudStorage.html">SyncCloudStorage</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Classes</h3><ul><li><a href="module-SyncCloudStorage-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Global</h3><ul><li><a href="global.html#getContentType">getContentType</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Tue Jan 30 2024 04:05:39 GMT+0100 (GMT+01:00)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Fri Feb 09 2024 00:49:08 GMT+0100 (Central European Standard Time)
 </footer>
 
 <script> prettyPrint(); </script>

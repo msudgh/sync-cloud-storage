@@ -32,12 +32,11 @@ custom:
       actions:
         - upload
         - delete
-      bucketPrefix: assets
+      prefix: assets
       acl: public-read
       metadata:
         foo: bar
         bar: foo
-      acl: public-read
 ```
 
 ## Deployments

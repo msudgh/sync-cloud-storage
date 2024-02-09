@@ -4,6 +4,7 @@ import path from 'path'
 
 import { Storage } from '../../schemas/input'
 import { LocalFile } from '../../types'
+import { extractAfterSubdirectory } from '../../utils/objects'
 
 /**
  * Returns a list of local files recursively.
@@ -27,12 +28,17 @@ export const getLocalFiles = async (
       const innerFiles = await getLocalFiles(fullPath, storage)
       recursiveFiles.push(...innerFiles)
     } else {
+      const internalPath = extractAfterSubdirectory(fullPath, storage.localPath)
+      let key = internalPath
+
+      if (storage.prefix) {
+        key = path.join(storage.prefix, internalPath)
+      }
+
       const file: LocalFile = {
         LocalPath: fullPath,
-        Key: storage.bucketPrefix
-          ? path.join(`${storage.bucketPrefix}/${item}`)
-          : item,
-        LastModified: stat.mtime,
+        Key: key,
+        LastModified: new Date(stat.mtime),
         Size: stat.size,
         ETag: await getFileETag(fs.createReadStream(fullPath)),
       }

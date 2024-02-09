@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Class: SyncCloudStorage</title>
+    <title>JSDoc: Global</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Class: SyncCloudStorage</h1>
+    <h1 class="page-title">Global</h1>
 
     
 
@@ -28,8 +28,7 @@
 
 <header>
     
-        <h2><span class="attribs"><span class="type-signature"></span></span>
-            <span class="ancestors"><a href="module-SyncCloudStorage.html">SyncCloudStorage</a>~</span>SyncCloudStorage<span class="signature">(serverless, options, logging)</span><span class="type-signature"></span></h2>
+        <h2></h2>
         
     
 </header>
@@ -39,15 +38,83 @@
     
         
 
+        
+
+
+<dl class="details">
+
     
 
     
-    <h4 class="name" id="SyncCloudStorage"><span class="type-signature"></span>new SyncCloudStorage<span class="signature">(serverless, options, logging)</span><span class="type-signature"></span></h4>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="getContentType"><span class="type-signature"></span>getContentType<span class="signature">(key<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {string}</span></h4>
     
 
     
 
 
+
+<div class="description">
+    <p>Returns the MIME type of a file based on its extension.
+If the file extension is not recognized, it returns a default MIME type.</p>
+</div>
 
 
 
@@ -70,6 +137,8 @@
         <th>Type</th>
 
         
+        <th>Attributes</th>
+        
 
         
 
@@ -82,69 +151,33 @@
 
         <tr>
             
-                <td class="name"><code>serverless</code></td>
+                <td class="name"><code>key</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">Serverless</span>
+<span class="param-type">string</span>
 
 
             
             </td>
 
             
-
-            
-
-            <td class="description last"><p>Serverless instance</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>options</code></td>
-            
-
-            <td class="type">
-            
+                <td class="attributes">
                 
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"><p>Serverless CLI options</p></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>logging</code></td>
-            
-
-            <td class="type">
-            
+                    &lt;optional><br>
                 
-<span class="param-type">Object</span>
 
+                
 
-            
-            </td>
-
-            
-
+                
+                </td>
             
 
-            <td class="description last"><p>Serverless logging module</p></td>
+            
+
+            <td class="description last"><p>The name of the file including its extension.</p></td>
         </tr>
 
     
@@ -185,7 +218,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="index.js.html">index.js</a>, <a href="index.js.html#line26">line 26</a>
+        <a href="utils_objects.js.html">utils/objects.js</a>, <a href="utils_objects.js.html#line27">line 27</a>
     </li></ul></dd>
     
 
@@ -210,28 +243,34 @@
 
 
 
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>The MIME type of the file.</p>
+</div>
 
 
 
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
 
+
+    </dd>
+</dl>
 
     
-    </div>
 
-    
 
-    
 
-    
 
-    
 
-    
-
-    
-
-    
-
+        
     
 
     
