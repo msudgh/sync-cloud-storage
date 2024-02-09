@@ -105,7 +105,9 @@ describe('SyncCloudStorage', () => {
       try {
         new SyncCloudStorage(mockServerless, optionsMock, loggingMock)
       } catch (error) {
-        expect(error).toBeInstanceOf(InvalidConfigError)
+        const typedError = error as InvalidConfigError
+        expect(typedError).toBeInstanceOf(InvalidConfigError)
+        expect(typedError.name).toEqual('InvalidConfigError')
       }
     })
   })
@@ -607,7 +609,7 @@ describe('SyncCloudStorage', () => {
 
     it('should sync multiple storages with with all actions', async () => {
       const inputCustom = createValidInputFixture(
-        './assets/giraffe-multiple',
+        './assets/giraffe',
         sampleStorage.name
       )
       const inputCustom2 = createValidInputFixture(
@@ -646,14 +648,35 @@ describe('SyncCloudStorage', () => {
 
       expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
-      const giraffeREADME = 'sub/README.md'
-
-      const expectedFile = expect.objectContaining<LocalFile>({
+      const giraffeReadme = 'README.md'
+      const giraffeSubReadme = 'sub/README.md'
+      const expectedReadmeLocalFile = expect.objectContaining<LocalFile>({
         ETag: expect.any(String),
-        Key: giraffeREADME,
+        Key: giraffeReadme,
         LastModified: expect.any(Date),
-        LocalPath: expect.stringMatching(giraffeREADME),
+        LocalPath: expect.stringMatching(giraffeReadme),
         Size: expect.any(Number),
+      })
+      const expectedSubReadmeLocalFile = expect.objectContaining<LocalFile>({
+        ETag: expect.any(String),
+        Key: giraffeSubReadme,
+        LastModified: expect.any(Date),
+        LocalPath: expect.stringMatching(giraffeReadme),
+        Size: expect.any(Number),
+      })
+      const expectedUploadedReadmeFile = expect.objectContaining({
+        storage: storage1.name,
+        etag: expect.any(String),
+        key: giraffeReadme,
+        location: expect.any(String),
+        versionId: expect.any(String),
+      })
+      const expectedUploadedSubReadmeFile = expect.objectContaining({
+        storage: storage1.name,
+        etag: expect.any(String),
+        key: giraffeSubReadme,
+        location: expect.any(String),
+        versionId: expect.any(String),
       })
 
       const expectedResponse = {
@@ -662,51 +685,38 @@ describe('SyncCloudStorage', () => {
             status: 'fulfilled',
             value: {
               deleted: expect.arrayContaining([]),
-              files: [expectedFile],
+              files: [expectedReadmeLocalFile],
               filesToDelete: expect.arrayContaining([]),
               filesToUpload: expect.arrayContaining([
-                expect.stringContaining(giraffeREADME),
+                expect.stringContaining(giraffeReadme),
               ]),
               localFilesChecksum: expect.arrayContaining([
-                expect.stringContaining(giraffeREADME),
+                expect.stringContaining(giraffeReadme),
               ]),
               objects: expect.arrayContaining([]),
               storage: storages[0],
               storageObjectsChecksum: expect.arrayContaining([]),
-              uploaded: [
-                {
-                  storage: storages[0].name,
-                  etag: expect.any(String),
-                  key: giraffeREADME,
-                  location: expect.any(String),
-                  versionId: expect.any(String),
-                },
-              ],
+              uploaded: [expectedUploadedReadmeFile],
             },
           },
           {
             status: 'fulfilled',
             value: {
               deleted: expect.arrayContaining([]),
-              files: [expectedFile],
+              files: [expectedReadmeLocalFile, expectedSubReadmeLocalFile],
               filesToDelete: expect.arrayContaining([]),
               filesToUpload: expect.arrayContaining([
-                expect.stringContaining(giraffeREADME),
+                expect.stringContaining(giraffeReadme),
               ]),
               localFilesChecksum: expect.arrayContaining([
-                expect.stringContaining(giraffeREADME),
+                expect.stringContaining(giraffeReadme),
               ]),
               objects: expect.arrayContaining([]),
               storage: storages[1],
               storageObjectsChecksum: expect.arrayContaining([]),
               uploaded: [
-                {
-                  storage: storages[1].name,
-                  etag: expect.any(String),
-                  key: giraffeREADME,
-                  location: expect.any(String),
-                  versionId: expect.any(String),
-                },
+                expectedUploadedReadmeFile,
+                expectedUploadedSubReadmeFile,
               ],
             },
           },
