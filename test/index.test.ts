@@ -664,15 +664,22 @@ describe('SyncCloudStorage', () => {
         LocalPath: expect.stringMatching(giraffeReadme),
         Size: expect.any(Number),
       })
-      const expectedUploadedReadmeFile = expect.objectContaining({
+      const expectedUploadedReadmeFile1 = expect.objectContaining({
         storage: storage1.name,
         etag: expect.any(String),
         key: giraffeReadme,
         location: expect.any(String),
         versionId: expect.any(String),
       })
-      const expectedUploadedSubReadmeFile = expect.objectContaining({
-        storage: storage1.name,
+      const expectedUploadedReadmeFile2 = expect.objectContaining({
+        storage: storage2.name,
+        etag: expect.any(String),
+        key: giraffeReadme,
+        location: expect.any(String),
+        versionId: expect.any(String),
+      })
+      const expectedUploadedSubReadmeFile2 = expect.objectContaining({
+        storage: storage2.name,
         etag: expect.any(String),
         key: giraffeSubReadme,
         location: expect.any(String),
@@ -696,7 +703,7 @@ describe('SyncCloudStorage', () => {
               objects: expect.arrayContaining([]),
               storage: storages[0],
               storageObjectsChecksum: expect.arrayContaining([]),
-              uploaded: [expectedUploadedReadmeFile],
+              uploaded: [expectedUploadedReadmeFile1],
             },
           },
           {
@@ -715,8 +722,8 @@ describe('SyncCloudStorage', () => {
               storage: storages[1],
               storageObjectsChecksum: expect.arrayContaining([]),
               uploaded: [
-                expectedUploadedReadmeFile,
-                expectedUploadedSubReadmeFile,
+                expectedUploadedReadmeFile2,
+                expectedUploadedSubReadmeFile2,
               ],
             },
           },
