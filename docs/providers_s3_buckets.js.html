@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: providers/s3/buckets.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: providers/s3/buckets.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>"use strict";
+var __importDefault = (this &amp;&amp; this.__importDefault) || function (mod) {
+    return (mod &amp;&amp; mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteStorage = exports.createStorage = exports.syncTags = exports.syncMetadata = exports.sync = exports.storageExists = void 0;
+const path_1 = __importDefault(require("path"));
+const client_s3_1 = require("@aws-sdk/client-s3");
+const objects_1 = require("./objects");
+const logger_1 = __importDefault(require("../../utils/logger"));
+const objects_2 = require("../../utils/objects");
+const tags_1 = require("../../utils/tags");
+const objects_3 = require("../local/objects");
+const storageExists = async (client, name) => {
+    try {
+        const storages = (await client.send(new client_s3_1.ListBucketsCommand({}))).Buckets ?? [];
+        return storages.filter((storage) => storage.Name === name).length > 0;
+    }
+    catch (error) {
+        return false;
+    }
+};
+exports.storageExists = storageExists;
+/**
+ * Syncs storage with upload and delete actions by comparing local file and storage's object `${Key}-${ETag}`.
+ * @memberof S3
+ * @param {S3Client} client
+ * @param {Storage} storage
+ * @param {string} servicePath - Root directory of the service
+ * @returns {SyncResult}
+ */
+const sync = async (client, storage, servicePath) => {
+    const { name } = storage;
+    const storageExist = await (0, exports.storageExists)(client, name);
+    if (!storageExist) {
+        throw new Error('StorageNotFound');
+    }
+    logger_1.default.info('Syncing storage', { storage: storage.name });
+    const files = await (0, objects_3.getLocalFiles)(path_1.default.join(servicePath, storage.localPath), storage);
+    const localFilesChecksum = files.map((file) => (0, objects_2.getChecksum)(file.Key, file.ETag));
+    const objects = await (0, objects_1.listObjects)(client, storage);
+    const storageObjectsChecksum = objects.map((object) => (0, objects_2.getChecksum)(object.Key, object.ETag));
+    const filesToUpload = localFilesChecksum.filter((fileChecksum) => !storageObjectsChecksum.includes(fileChecksum));
+    const filesToDelete = storageObjectsChecksum.filter((objectChecksum) => !localFilesChecksum.includes(objectChecksum));
+    let uploaded = [];
+    let deleted = [];
+    if (filesToUpload.length >= 1 &amp;&amp; storage.actions.includes('upload')) {
+        uploaded = await (0, objects_1.uploadObjects)(client, storage, files, filesToUpload);
+    }
+    if (filesToDelete.length >= 1 &amp;&amp; storage.actions.includes('delete')) {
+        const objectsToDelete = objects.filter((object) => filesToDelete.includes((0, objects_2.getChecksum)(object.Key, object.ETag)));
+        deleted = await (0, objects_1.deleteObjects)(client, storage, objectsToDelete);
+    }
+    const result = {
+        storage,
+        files,
+        objects,
+        localFilesChecksum,
+        storageObjectsChecksum,
+        filesToUpload,
+        filesToDelete,
+        uploaded,
+        deleted,
+    };
+    return result;
+};
+exports.sync = sync;
+/**
+ * Syncs storage's metadata.
+ * @memberof S3
+ * @param {S3Client} client
+ * @param {Storage} storage
+ * @returns {Promise&lt;SyncMetadataReturn>}
+ */
+const syncMetadata = async (client, storage) => {
+    const existingObjects = await (0, objects_1.listObjects)(client, storage);
+    const syncedMetadata = [];
+    for (const file of existingObjects) {
+        logger_1.default.info("Syncing storage's metadata", {
+            storage: storage.name,
+            Key: file.Key,
+        });
+        const copyCommand = new client_s3_1.CopyObjectCommand({
+            Bucket: storage.name,
+            Key: file.Key,
+            CopySource: encodeURIComponent(`${storage.name}/${file.Key}`),
+            ContentType: (0, objects_2.getContentType)(file.Key),
+            MetadataDirective: client_s3_1.MetadataDirective.REPLACE,
+            Metadata: storage.metadata,
+            ACL: storage.acl,
+        });
+        const result = await client.send(copyCommand);
+        logger_1.default.info('Metadata synced', {
+            storage: storage.name,
+            Key: file.Key,
+            result,
+        });
+        const headCommand = await client.send(new client_s3_1.HeadObjectCommand({
+            Bucket: storage.name,
+            Key: storage.prefix
+                ? path_1.default.join(storage.prefix, `${file.Key}`)
+                : file.Key,
+        }));
+        syncedMetadata.push({
+            Key: file.Key,
+            Bucket: storage.name,
+            Metadata: headCommand.Metadata,
+        });
+    }
+    return syncedMetadata;
+};
+exports.syncMetadata = syncMetadata;
+/**
+ * Syncs storage's tags.
+ * @memberof S3
+ * @param {S3Client} client
+ * @param {Storage} storage
+ * @returns {TagsSyncResult}
+ */
+const syncTags = async (client, storage) => {
+    logger_1.default.info("Syncing storage's tags", { storage: storage.name });
+    let existingTagSet = { TagSet: [] };
+    try {
+        try {
+            const existingTagSetCommand = new client_s3_1.GetBucketTaggingCommand({
+                Bucket: storage.name,
+            });
+            existingTagSet = await client.send(existingTagSetCommand);
+        }
+        catch (error) {
+            if (error.name === 'NoSuchTagSet') {
+                existingTagSet = { TagSet: [] };
+            }
+            else {
+                logger_1.default.error('Failed to get existing tags', {
+                    storage: storage.name,
+                    error: JSON.stringify(error),
+                });
+            }
+        }
+        const mergedTagSet = (0, tags_1.mergeTags)(existingTagSet.TagSet, storage.tags ?? {});
+        await client.send(new client_s3_1.PutBucketTaggingCommand({
+            Bucket: storage.name,
+            Tagging: {
+                TagSet: mergedTagSet,
+            },
+        }));
+        logger_1.default.info("Synced storage's tags", {
+            storage: storage.name,
+            existingTagSet: existingTagSet.TagSet,
+            newTagSet: storage.tags,
+            mergedTagSet: mergedTagSet,
+        });
+        return { storage, result: mergedTagSet };
+    }
+    catch (error) {
+        return { storage, error: JSON.stringify(error) };
+    }
+};
+exports.syncTags = syncTags;
+const createStorage = async (client, storage) => {
+    logger_1.default.info('Creating storage', { storage: storage.name });
+    const createCommand = new client_s3_1.CreateBucketCommand({
+        Bucket: storage.name,
+        ObjectLockEnabledForBucket: true,
+        ObjectOwnership: 'BucketOwnerPreferred',
+    });
+    await client.send(createCommand);
+    logger_1.default.info('Storage created', { storage: storage.name });
+    const aclCommand = new client_s3_1.PutBucketAclCommand({
+        Bucket: storage.name,
+        ACL: 'private',
+    });
+    await client.send(aclCommand);
+    logger_1.default.info('Storage ACL enabled', { storage: storage.name });
+    return storage;
+};
+exports.createStorage = createStorage;
+const deleteStorage = async (client, storage) => {
+    logger_1.default.info('Deleting storage', { storage: storage.name });
+    const objects = await (0, objects_1.listObjects)(client, storage);
+    const deletedObjects = await (0, objects_1.deleteObjects)(client, storage, objects);
+    await client.send(new client_s3_1.DeleteBucketCommand({
+        Bucket: storage.name,
+    }));
+    logger_1.default.info('Storage deleted', { storage: storage.name });
+    return deletedObjects;
+};
+exports.deleteStorage = deleteStorage;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Classes</h3><ul><li><a href="module-SyncCloudStorage-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Global</h3><ul><li><a href="global.html#getContentType">getContentType</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Fri Feb 09 2024 00:49:08 GMT+0100 (Central European Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
