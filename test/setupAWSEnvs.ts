@@ -8,7 +8,7 @@ const checkEnvVariables = (env: NodeJS.ProcessEnv) => {
   return env.AWS_REGION && env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
 }
 
-export const setupEnvs = async (): Promise<void> => {
+export const setupAWSEnvs = async (): Promise<void> => {
   const { credentialsFile, configFile } = await loadSharedConfigFiles({
     ignoreCache: true,
   })
@@ -17,7 +17,7 @@ export const setupEnvs = async (): Promise<void> => {
   const credentials = credentialsFile[profile]
   const config = configFile[profile]
 
-  if (!credentials && !config && checkEnvVariables(process.env)) {
+  if (!credentials || checkEnvVariables(process.env)) {
     logger.info(
       "AWS Region & Credentials not found in '~/.aws/credentials & '~/.aws/config'!"
     )

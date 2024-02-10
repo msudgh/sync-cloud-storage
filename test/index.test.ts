@@ -12,7 +12,7 @@ import {
   createValidInputFixtureWithTags,
   sampleStorage,
 } from './schemas/input.fixture'
-import { setupEnvs } from './setupEnvs'
+import { setupAWSEnvs } from './setupAWSEnvs'
 import SyncCloudStorage from '../src'
 import { InvalidConfigError } from '../src/errors'
 import { createStorage, deleteStorage } from '../src/providers/s3/buckets'
@@ -41,7 +41,7 @@ const setupStorage = async (client: S3Client, storage: Storage) => {
 
 describe('SyncCloudStorage', () => {
   beforeAll(async () => {
-    await setupEnvs()
+    await setupAWSEnvs()
   })
 
   describe('Constructor Related Tests', () => {
