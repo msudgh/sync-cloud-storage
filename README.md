@@ -13,9 +13,10 @@ Available for following cloud frameworks:
 
 ## Installation
 
-```bash
-npm install --save sync-cloud-storage
-```
+1. [**ni**](https://github.com/antfu/ni): `ni add sync-cloud-storage -D`
+2. [**npm**](https://npmjs.com/): `npm install sync-cloud-storage -D`
+3. [**yarn**](https://yarnpkg.com/): `yarn add sync-cloud-storage -D`
+4. [**pnpm**](https://pnpm.io/): `pnpm add sync-cloud-storage -D`
 
 ## Usage
 
