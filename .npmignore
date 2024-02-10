@@ -1,0 +1,15 @@
+.git
+.github
+.husky
+.vscode
+coverage
+src
+test
+codecov.yml
+jest.config.js
+tsconfig.*.json
+jsdoc.json
+pnpm-lock.yaml
+.prettierrc
+.eslintrc.json
+.eslintignore
