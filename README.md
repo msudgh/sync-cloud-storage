@@ -5,17 +5,26 @@
 [![Codecov Status](https://codecov.io/gh/msudgh/sync-cloud-storage/branch/main/graph/badge.svg?token=2BY6063VOY)](https://codecov.io/gh/msudgh/sync-cloud-storage)
 [![License](https://img.shields.io/github/license/msudgh/sync-cloud-storage)](LICENSE)
 
-A simple way to sync folders & files between a remote machine and a cloud provider's framework.
+A simple way to sync folders & files between a remote machine and a cloud provider's storage.
 
 Available for following cloud frameworks:
 
 - [Serverless](https://serverless.com/)
 
+> **Note**: This plugin is still in development and may not be stable. Use with caution.
+
 ## Installation
 
-```bash
-npm install --save sync-cloud-storage
-```
+1. [**ni**](https://github.com/antfu/ni): `ni sync-cloud-storage -D`
+2. [**npm**](https://npmjs.com/): `npm i sync-cloud-storage -D`
+3. [**yarn**](https://yarnpkg.com/): `yarn add sync-cloud-storage -D`
+4. [**pnpm**](https://pnpm.io/): `pnpm add sync-cloud-storage -D`
+
+## Why
+
+- Uses the latest official cloud provider's SDK.
+- Sync multiple storages at once.
+- Sync tags and metadata of each storage.
 
 ## Usage
 
@@ -37,14 +46,4 @@ custom:
       metadata:
         foo: bar
         bar: foo
-```
-
-## Deployments
-
-### [Granted](https://github.com/common-fate/granted) (assume)
-
-By using the `assume` command, you can grant access to the plugin to deploy to your cloud framework.
-
-```bash
-assume
 ```

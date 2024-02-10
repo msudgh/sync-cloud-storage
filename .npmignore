@@ -13,3 +13,4 @@ pnpm-lock.yaml
 .prettierrc
 .eslintrc.json
 .eslintignore
+dist/tsconfig.build.tsbuildinfo
