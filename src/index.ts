@@ -22,7 +22,6 @@ class SyncCloudStorage implements ServerlessPlugin {
   servicePath: string
   config: Custom
   logging: ServerlessPlugin.Logging
-  taskProcess?: ServerlessPlugin.Progress
   client: S3Client
   readonly _storages: Storage[] = []
 
@@ -78,7 +77,6 @@ class SyncCloudStorage implements ServerlessPlugin {
       : undefined
 
     return new S3Client({
-      // ...credentials,
       endpoint,
     })
   }
@@ -155,11 +153,9 @@ class SyncCloudStorage implements ServerlessPlugin {
    * const result = await this.metadata()
    */
   async metadata() {
-    const updatedMetadata = await Promise.allSettled(
+    return await Promise.allSettled(
       this._storages.map((bucket) => syncMetadata(this.client, bucket))
     )
-
-    return updatedMetadata
   }
 
   /**

@@ -25,9 +25,9 @@
     "build": "rm -rf ./dist && tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json -w",
     "build:type-check": "tsc -p tsconfig.build.json --noEmit",
-    "test": "jest --verbose",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --no-cache --coverage",
+    "test": "jest . --verbose",
+    "test:watch": "jest . --watch",
+    "test:coverage": "jest . --no-cache --coverage",
     "format": "prettier --write \"**/*.{ts,js,md,json,yaml,yml}\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -68,14 +68,14 @@
   },
   "lint-staged": {
     "*.ts": [
-      "pnpm test"
+      "npm run test"
     ],
     "*.{ts,js}": [
-      "pnpm run lint",
-      "pnpm run format"
+      "npm run lint",
+      "npm run format"
     ],
     "*.{json,md,yaml}": [
-      "pnpm run format"
+      "npm run format"
     ]
   }
 }
