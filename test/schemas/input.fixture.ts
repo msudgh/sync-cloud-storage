@@ -156,11 +156,6 @@ export const createValidInputFileFixture = (): Required<Custom> => {
   return baseInputFixture
 }
 
-export const createValidInputDirectoryFixture = (): Required<Custom> => {
-  const baseInputFixture = createBaseInputFixture()
-  return baseInputFixture
-}
-
 export const createInvalidInputFixture = (
   additionalProps: DeepPartial<Custom> = {}
 ) => ({

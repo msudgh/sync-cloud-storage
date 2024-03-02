@@ -26,9 +26,9 @@
     "build": "rm -rf ./dist && tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json -w",
     "build:type-check": "tsc -p tsconfig.build.json --noEmit",
-    "test": "node --trace-warnings --experimental-vm-modules 'node_modules/jest/bin/jest.js' .",
-    "test:watch": "node --trace-warnings --experimental-vm-modules 'node_modules/jest/bin/jest.js' . --watch",
-    "test:coverage": "node --trace-warnings --experimental-vm-modules 'node_modules/jest/bin/jest.js' . --no-cache --coverage",
+    "test": "node --trace-warnings --experimental-vm-modules 'node_modules/jest/bin/jest.js'",
+    "test:watch": "node --trace-warnings --experimental-vm-modules 'node_modules/jest/bin/jest.js' --watch",
+    "test:coverage": "node --trace-warnings --experimental-vm-modules 'node_modules/jest/bin/jest.js' --no-cache --coverage",
     "format": "prettier --write \"**/*.{ts,js,md,json,yaml,yml}\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -64,21 +64,19 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.511.0",
     "@aws-sdk/lib-storage": "3.511.0",
-    "fast-glob": "^3.3.2",
     "globby": "^14.0.1",
     "mrmime": "2.0.0",
     "winston": "^3.11.0",
     "zod": "3.22.4"
   },
   "lint-staged": {
-    "*.ts": [
+    "(/test/.*\\.test\\.ts)$": [
       "npm run test"
     ],
     "*.{ts,js}": [
-      "npm run lint",
-      "npm run format"
+      "npm run lint"
     ],
-    "*.{json,md,yaml}": [
+    "*.{ts,js,json,md,yaml}": [
       "npm run format"
     ]
   }

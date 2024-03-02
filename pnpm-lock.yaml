@@ -11,9 +11,6 @@ dependencies:
   '@aws-sdk/lib-storage':
     specifier: 3.511.0
     version: 3.511.0(@aws-sdk/client-s3@3.511.0)
-  fast-glob:
-    specifier: ^3.3.2
-    version: 3.3.2
   globby:
     specifier: ^14.0.1
     version: 14.0.1
