@@ -1,17 +1,29 @@
-# Sync Cloud Storage
+# sync-cloud-storage
 
 [![NPM](https://img.shields.io/npm/v/sync-cloud-storage)](https://www.npmjs.com/package/sync-cloud-storage)
 [![Pipeline Status](https://github.com/msudgh/sync-cloud-storage/actions/workflows/ci.yml/badge.svg?branch=main)](./.github/workflows/ci.yml)
 [![Codecov Status](https://codecov.io/gh/msudgh/sync-cloud-storage/branch/main/graph/badge.svg?token=2BY6063VOY)](https://codecov.io/gh/msudgh/sync-cloud-storage)
 [![License](https://img.shields.io/github/license/msudgh/sync-cloud-storage)](LICENSE)
 
-A simple way to sync folders & files between a remote machine and a cloud provider's storage.
+Synchronize files and directories between a remote computer and multiple Serverless cloud providers' storage.
 
-Available for following cloud frameworks:
+Supported cloud providers:
 
-- [Serverless](https://serverless.com/)
+- [x] AWS S3
 
-> **Note**: This plugin is still in development and may not be stable. Use with caution.
+## Features
+
+- Uses the latest official cloud provider's SDK
+  - AWS S3: [`aws-sdk@3.x`](https://www.npmjs.com/package/aws-sdk)
+- Sync multiple storages at once by just defining patterns of [`glob`](<https://en.wikipedia.org/wiki/Glob_(programming)>) strings to include or exclude files and directories
+- Set the following for each synced file:
+  - prefix
+  - access control list (ACL)
+  - tags
+  - metadata
+- Select a list of specific sync actions for each storage:
+  - upload
+  - delete
 
 ## Installation
 
@@ -20,15 +32,11 @@ Available for following cloud frameworks:
 3. [**yarn**](https://yarnpkg.com/): `yarn add sync-cloud-storage -D`
 4. [**pnpm**](https://pnpm.io/): `pnpm add sync-cloud-storage -D`
 
-## Why
-
-- Uses the latest official cloud provider's SDK.
-- Sync multiple storages at once.
-- Sync tags and metadata of each storage.
-
 ## Usage
 
 ### Serverless
+
+#### AWS S3
 
 ```yaml
 plugins:

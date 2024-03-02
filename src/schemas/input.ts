@@ -13,7 +13,6 @@ const tags = z.record(z.string(), z.string())
 
 const storage = z.object({
   name: z.string(),
-  // Ref: https://github.com/mrmlnc/fast-glob#pattern-syntax
   patterns: z.array(z.string()).min(1),
   actions: z.array(z.string()).default(['upload', 'delete']),
   prefix: z.string().default(''),
