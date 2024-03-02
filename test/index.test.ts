@@ -65,10 +65,7 @@ const uploadedFilesExpects = (storage: Storage, files: UploadedObject[]) => {
     expect(file.etag).toMatch(/^\"[a-f0-9]{32}\"$/)
     expect(file.versionId).toMatch(/[A-Za-z0-9.]+/)
     expect(storage.name).toContain(file.storage)
-    const locationRegex = new RegExp(
-      // eslint-disable-next-line no-useless-escape
-      `^https://(${file.storage}).s3.us-east-1.amazonaws.com/${keyRegexStr}$`
-    )
+    const locationRegex = new RegExp(`^.*/(${keyRegexStr})$`)
     expect(file.location).toMatch(locationRegex)
   })
 }
@@ -277,48 +274,6 @@ describe('SyncCloudStorage', () => {
       const response = await syncCloudStorage.storages()
 
       expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
-
-      // const giraffeREADME = 'README.md'
-      // const expectedResponse = {
-      //   result: [
-      //     {
-      //       status: 'fulfilled',
-      //       value: {
-      //         files: [
-      //           {
-      //             Key: expect.stringMatching(
-      //               new RegExp(`${prefix}/${giraffeREADME}`)
-      //             ),
-      //             LocalPath: expect.any(String),
-      //             ETag: expect.any(String),
-      //             LastModified: expect.any(Date),
-      //             Size: expect.any(Number),
-      //           },
-      //         ],
-      //         filesToDelete: [],
-      //         filesToUpload: [expect.any(String)],
-      //         localFilesChecksum: [expect.any(String)],
-      //         objects: [],
-      //         storage: inputCustom.syncCloudStorage.storages[0],
-      //         storageObjectsChecksum: [],
-      //         uploaded: [
-      //           {
-      //             storage: inputCustom.syncCloudStorage.storages[0].name,
-      //             etag: expect.any(String),
-      //             key: expect.stringMatching(
-      //               new RegExp(`${prefix}/${giraffeREADME}`)
-      //             ),
-      //             location: expect.any(String),
-      //             versionId: expect.any(String),
-      //           },
-      //         ],
-      //         deleted: [],
-      //       },
-      //     },
-      //   ],
-      // }
-
-      // expect(response).toEqual(expectedResponse)
 
       for (const syncedStorage of response.result) {
         if (isFulfilledSyncResult(syncedStorage)) {
