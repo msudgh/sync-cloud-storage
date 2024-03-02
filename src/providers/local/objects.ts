@@ -27,10 +27,9 @@ const processFile = async (
   cwd: string,
   entry: GlobEntry,
   storage: Storage
-): Promise<LocalFile | undefined> => {
+): Promise<LocalFile> => {
   if (!entry.stats) {
-    // TODO: add a warning here, bail here? or just continue?
-    return undefined
+    throw new Error(`No stats for ${entry.path}`)
   }
 
   const localPathWithCwd = path.join(cwd, entry.path)
