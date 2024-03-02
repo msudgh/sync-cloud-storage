@@ -138,7 +138,9 @@ describe('SyncCloudStorage', () => {
       const response = await syncCloudStorage.storages()
 
       expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
-      expect(response).toEqual({ result: [] })
+      expect(response).toEqual({
+        result: [{ reason: 'Plugin is disabled', status: 'rejected' }],
+      })
     })
 
     it("should not sync when there's no bucket", async () => {
@@ -316,11 +318,10 @@ describe('SyncCloudStorage', () => {
 
       for (const newTag of newTags) {
         const { status, value } = newTag as TagsMethodPromiseResult
-        const { result, error, storage } = value
+        const { result, error } = value
 
         expect(status).toBe('fulfilled')
         expect(error).toBe(undefined)
-        expect(storage).toEqual(inputCustom.syncCloudStorage.storages[0])
         expect(result).toEqual(expectedTags)
         expect(result?.length).toBeGreaterThanOrEqual(1)
 

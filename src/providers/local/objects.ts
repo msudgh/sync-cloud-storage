@@ -28,16 +28,11 @@ const processFile = async (
   entry: GlobEntry,
   storage: Storage
 ): Promise<LocalFile> => {
-  if (!entry.stats) {
-    throw new Error(`No stats for ${entry.path}`)
-  }
-
   const localPathWithCwd = path.join(cwd, entry.path)
-  const etag =
-    (await getFileETag(fs.createReadStream(localPathWithCwd))) ?? undefined
   const key = getKey(storage, localPathWithCwd, cwd)
-  const lastModified = entry.stats.mtime ?? new Date()
-  const size = entry.stats.size ?? 0
+  const etag = await getFileETag(fs.createReadStream(localPathWithCwd))
+  const lastModified = entry?.stats?.mtime ?? new Date()
+  const size = entry?.stats?.size ?? 0
 
   return {
     fileName: entry.name,
@@ -89,7 +84,7 @@ export const getLocalFiles = async (
   return files
 }
 
-const getFileETag = async (stream: fs.ReadStream) => {
+const getFileETag = async (stream: fs.ReadStream): Promise<string> => {
   const hash = createHash('md5')
   for await (const chunk of stream) {
     hash.update(chunk)

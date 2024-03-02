@@ -32,13 +32,8 @@ export const storageExists = async (
   client: S3Client,
   name: string
 ): Promise<boolean> => {
-  try {
-    const storages =
-      (await client.send(new ListBucketsCommand({}))).Buckets ?? []
-    return storages.filter((storage) => storage.Name === name).length > 0
-  } catch (error) {
-    return false
-  }
+  const storages = (await client.send(new ListBucketsCommand({}))).Buckets ?? []
+  return storages.filter((storage) => storage.Name === name).length > 0
 }
 
 /**

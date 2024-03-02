@@ -15,14 +15,14 @@ import logger from './utils/logger'
  * @module SyncCloudStorage
  */
 class SyncCloudStorage implements ServerlessPlugin {
-  serverless!: Serverless
-  options!: Serverless.Options
-  hooks: ServerlessPlugin.Hooks
-  commands: ServerlessPlugin.Commands
-  servicePath: string
-  config: Custom
-  logging: ServerlessPlugin.Logging
-  client: S3Client
+  readonly serverless!: Serverless
+  readonly options!: Serverless.Options
+  readonly hooks: ServerlessPlugin.Hooks
+  readonly commands: ServerlessPlugin.Commands
+  readonly servicePath: string
+  readonly config: Custom
+  readonly logging: ServerlessPlugin.Logging
+  readonly client: S3Client
   readonly _storages: Storage[] = []
 
   /**
@@ -128,9 +128,10 @@ class SyncCloudStorage implements ServerlessPlugin {
    */
   async storages() {
     const isPluginDisable = this.disableCheck().result
-    const result: SyncResult[] = []
+    let result: SyncResult[] = []
 
     if (isPluginDisable) {
+      result.push({ reason: 'Plugin is disabled', status: 'rejected' })
       return { result }
     }
 
@@ -138,13 +139,7 @@ class SyncCloudStorage implements ServerlessPlugin {
       sync(this.client, bucket, this.servicePath)
     )
 
-    await Promise.allSettled(storagesToSync)
-      .then((results) => {
-        result.push(...results)
-      })
-      .catch((error) => {
-        result.push({ reason: error, status: 'rejected' })
-      })
+    result = await Promise.allSettled(storagesToSync)
 
     await this.onExit()
 
