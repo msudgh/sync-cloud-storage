@@ -9,7 +9,7 @@ import { LocalFile } from '../../types'
 import { extractAfterSubdirectory } from '../../utils/objects'
 
 const getKeyWithPrefix = (prefix: string, internalPath: string) =>
-  prefix && prefix.length > 0 ? path.join(prefix, internalPath) : internalPath
+  prefix.length > 0 ? path.join(prefix, internalPath) : internalPath
 
 export const getKey = (
   storage: Storage,
