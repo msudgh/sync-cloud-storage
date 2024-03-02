@@ -62,12 +62,12 @@ export const uploadObjects = async (
 
   for (const checksum of filesToUpload) {
     const fileToUpload = localFiles.find(
-      (file) => getChecksum(file.Key, file.ETag) === checksum
+      (file) => getChecksum(file.key, file.etag) === checksum
     ) as LocalFile
 
     logger.info('Upload file to bucket', {
       storage: storage.name,
-      key: fileToUpload.Key,
+      key: fileToUpload.key,
       checksum,
     })
 
@@ -75,16 +75,16 @@ export const uploadObjects = async (
       client,
       params: {
         Bucket: storage.name,
-        Key: fileToUpload.Key,
-        Body: fs.createReadStream(fileToUpload.LocalPath),
-        ContentType: getContentType(fileToUpload.Key),
+        Key: fileToUpload.key,
+        Body: fs.createReadStream(fileToUpload.localPath),
+        ContentType: getContentType(fileToUpload.key),
         ACL: storage.acl,
       },
     })
 
     logger.info('Uploaded file to bucket', {
       storage: storage.name,
-      Key: fileToUpload.Key,
+      Key: fileToUpload.key,
     })
 
     const result = await command.done()

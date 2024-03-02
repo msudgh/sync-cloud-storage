@@ -3,14 +3,21 @@ import { faker } from '@faker-js/faker'
 import { Custom, Storage, objectCannedACLs } from '../../src/schemas/input'
 import { DeepPartial } from '../../src/types'
 
+export const sampleStoragePatterns = {
+  single: ['test/assets/giraffe/*'],
+  multiple: ['test/assets/giraffe-multiple/*'],
+}
+
 export const sampleStorage: Storage = {
   name: 'my-static-site-assets',
   prefix: 'animals',
-  localPath: './assets/giraffe',
+  patterns: sampleStoragePatterns.single,
   actions: ['upload', 'delete'],
   acl: undefined,
   enabled: true,
   tags: {},
+  ignoreFiles: [],
+  gitignore: false,
 }
 
 const createBaseInputFixture = (): Required<Custom> => ({
@@ -19,7 +26,7 @@ const createBaseInputFixture = (): Required<Custom> => ({
     storages: [
       {
         name: faker.internet.domainName(),
-        localPath: faker.system.directoryPath(),
+        patterns: sampleStoragePatterns.single,
         actions: ['upload', 'delete'],
         prefix: faker.lorem.word(),
         enabled: faker.datatype.boolean(),
@@ -30,6 +37,8 @@ const createBaseInputFixture = (): Required<Custom> => ({
         tags: {
           tagKey: faker.lorem.word(),
         },
+        ignoreFiles: [],
+        gitignore: false,
       },
     ],
     endpoint: faker.internet.url(),
@@ -38,7 +47,7 @@ const createBaseInputFixture = (): Required<Custom> => ({
 })
 
 export const createValidInputFixture = (
-  localPath: string,
+  patterns: string[],
   name = '',
   prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
@@ -52,7 +61,7 @@ export const createValidInputFixture = (
         {
           ...sampleStorage,
           name,
-          localPath,
+          patterns,
           prefix: prefix,
         },
       ],
@@ -61,7 +70,7 @@ export const createValidInputFixture = (
 }
 
 export const createValidInputFixtureWithACLBucketOwner = (
-  localPath: string,
+  patterns: string[],
   name = '',
   prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
@@ -75,7 +84,7 @@ export const createValidInputFixtureWithACLBucketOwner = (
         {
           ...sampleStorage,
           name,
-          localPath,
+          patterns,
           prefix: prefix,
           acl: 'bucket-owner-full-control',
         },
@@ -85,7 +94,7 @@ export const createValidInputFixtureWithACLBucketOwner = (
 }
 
 export const createValidInputFixtureWithTags = (
-  localPath: string,
+  patterns: string[],
   name = '',
   prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
@@ -99,7 +108,7 @@ export const createValidInputFixtureWithTags = (
         {
           ...sampleStorage,
           name,
-          localPath,
+          patterns,
           prefix,
           tags: {
             [faker.lorem.word()]: faker.lorem.word(),
@@ -111,7 +120,7 @@ export const createValidInputFixtureWithTags = (
 }
 
 export const createValidInputFixtureWithMetadata = (
-  localPath: string,
+  patterns: string[],
   name = '',
   prefix = '',
   endpoint = process.env.AWS_ENDPOINT_URL
@@ -125,7 +134,7 @@ export const createValidInputFixtureWithMetadata = (
         {
           ...sampleStorage,
           name,
-          localPath,
+          patterns,
           prefix,
           metadata: {
             [faker.lorem.word()]: faker.lorem.word(),
@@ -144,15 +153,6 @@ export const createValidDisabledInputFixture = (): Required<Custom> => {
 
 export const createValidInputFileFixture = (): Required<Custom> => {
   const baseInputFixture = createBaseInputFixture()
-  baseInputFixture.syncCloudStorage.storages[0].localPath =
-    faker.system.filePath()
-  return baseInputFixture
-}
-
-export const createValidInputDirectoryFixture = (): Required<Custom> => {
-  const baseInputFixture = createBaseInputFixture()
-  baseInputFixture.syncCloudStorage.storages[0].localPath =
-    faker.system.directoryPath()
   return baseInputFixture
 }
 
@@ -164,7 +164,7 @@ export const createInvalidInputFixture = (
     storages: [
       {
         name: faker.internet.domainName(),
-        localPath: false,
+        patterns: false,
         actions: 123,
         prefix: 456,
         enabled: 'false',

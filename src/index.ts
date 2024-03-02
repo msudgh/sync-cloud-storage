@@ -7,7 +7,7 @@ import ServerlessPlugin from 'serverless/classes/Plugin'
 import { InvalidConfigError } from './errors'
 import { sync, syncMetadata, syncTags } from './providers/s3/buckets'
 import { Custom, Storage, custom } from './schemas/input'
-import { IServerless, MethodReturn, TagsSyncResults } from './types'
+import { IServerless, MethodReturn, SyncResult, TagsSyncResults } from './types'
 import logger from './utils/logger'
 
 /**
@@ -15,14 +15,14 @@ import logger from './utils/logger'
  * @module SyncCloudStorage
  */
 class SyncCloudStorage implements ServerlessPlugin {
-  serverless!: Serverless
-  options!: Serverless.Options
-  hooks: ServerlessPlugin.Hooks
-  commands: ServerlessPlugin.Commands
-  servicePath: string
-  config: Custom
-  logging: ServerlessPlugin.Logging
-  client: S3Client
+  readonly serverless!: Serverless
+  readonly options!: Serverless.Options
+  readonly hooks: ServerlessPlugin.Hooks
+  readonly commands: ServerlessPlugin.Commands
+  readonly servicePath: string
+  readonly config: Custom
+  readonly logging: ServerlessPlugin.Logging
+  readonly client: S3Client
   readonly _storages: Storage[] = []
 
   /**
@@ -128,20 +128,22 @@ class SyncCloudStorage implements ServerlessPlugin {
    */
   async storages() {
     const isPluginDisable = this.disableCheck().result
+    let result: SyncResult[] = []
 
     if (isPluginDisable) {
-      return { result: [] }
+      result.push({ reason: 'Plugin is disabled', status: 'rejected' })
+      return { result }
     }
 
-    const syncedStorages = await Promise.allSettled(
-      this._storages.map((bucket) =>
-        sync(this.client, bucket, this.servicePath)
-      )
+    const storagesToSync = this._storages.map((bucket) =>
+      sync(this.client, bucket, this.servicePath)
     )
+
+    result = await Promise.allSettled(storagesToSync)
 
     await this.onExit()
 
-    return { result: syncedStorages }
+    return { result }
   }
 
   /**
@@ -205,4 +207,3 @@ class SyncCloudStorage implements ServerlessPlugin {
 }
 
 export default SyncCloudStorage
-module.exports = SyncCloudStorage
