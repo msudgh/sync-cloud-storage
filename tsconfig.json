@@ -1,15 +1,19 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "CommonJS",
+    "target": "ES2022",
+    "module": "ES2022",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist",
+    "outDir": "./dist/esm",
     "declaration": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "incremental": true
+    "incremental": true,
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "removeComments": true,
+    "types": ["jest", "node", "@types/jest", "@types/node"]
   }
 }
