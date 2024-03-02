@@ -2,8 +2,8 @@ import { faker } from '@faker-js/faker'
 
 import { mergeTags } from '../../src/utils/tags'
 
-describe('mergeTags', () => {
-  it('should correctly merge new tags into existing tags, overwriting where necessary', () => {
+describe('tags', () => {
+  it('should correctly merge new tags into existing tags and overwriting', () => {
     const tagAKey = faker.string.alpha(10)
     const tagAValue = faker.string.alpha(10)
     const tagAOverwriteValue = faker.string.alpha(10)

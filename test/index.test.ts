@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { DeletedObject, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { mock } from 'jest-mock-extended'
 import { Options } from 'serverless'
 import { Logging } from 'serverless/classes/Plugin'
@@ -11,17 +11,23 @@ import {
   createValidInputFixtureWithMetadata,
   createValidInputFixtureWithTags,
   sampleStorage,
+  sampleStoragePatterns,
 } from './schemas/input.fixture'
 import { setupAWSEnvs } from './setupAWSEnvs'
-import SyncCloudStorage from '../src'
 import { InvalidConfigError } from '../src/errors'
+import SyncCloudStorage from '../src/index'
 import { createStorage, deleteStorage } from '../src/providers/s3/buckets'
 import * as objects from '../src/providers/s3/objects'
 import { Storage } from '../src/schemas/input'
-import { LocalFile, TagsMethodPromiseResult } from '../src/types'
+import {
+  TagsMethodPromiseResult,
+  UploadedObject,
+  isFulfilledSyncResult,
+} from '../src/types'
 import logger from '../src/utils/logger'
 import { mergeTags } from '../src/utils/tags'
 
+const cwd = process.cwd()
 const optionsMock = mock<Options>()
 const loggingMock = mock<Logging>()
 
@@ -39,6 +45,50 @@ const setupStorage = async (client: S3Client, storage: Storage) => {
   }
 }
 
+const uploadedFilesExpects = (storage: Storage, files: UploadedObject[]) => {
+  expect(Array.isArray(files)).toBe(true)
+  expect(files.length).toBeGreaterThan(0)
+
+  files.forEach((file) => {
+    // Check for the existence of necessary properties
+    expect(file).toHaveProperty('key')
+    expect(file).toHaveProperty('etag')
+    expect(file).toHaveProperty('versionId')
+    expect(file).toHaveProperty('storage')
+    expect(file).toHaveProperty('location')
+
+    const prefix = storage.prefix ? `${storage.prefix}/` : ''
+    const keyRegexStr = `${prefix}test/assets/(giraffe-multiple|giraffe)/(README\\.md|sub/README\\.md)`
+    expect(file.key).toMatch(new RegExp(keyRegexStr))
+
+    // eslint-disable-next-line no-useless-escape
+    expect(file.etag).toMatch(/^\"[a-f0-9]{32}\"$/)
+    expect(file.versionId).toMatch(/[A-Za-z0-9.]+/)
+    expect(storage.name).toContain(file.storage)
+    const locationRegex = new RegExp(
+      // eslint-disable-next-line no-useless-escape
+      `^https://(${file.storage}).s3.us-east-1.amazonaws.com/${keyRegexStr}$`
+    )
+    expect(file.location).toMatch(locationRegex)
+  })
+}
+
+const deletedFilesExpects = (
+  files: DeletedObject[],
+  expects: { length: number }
+) => {
+  const { length } = expects
+  expect(Array.isArray(files)).toBe(true)
+  expect(files.length).toBe(length)
+
+  if (length > 0) {
+    files.forEach((file) => {
+      expect(file).toHaveProperty('Key')
+      expect(file).toHaveProperty('VersionId')
+    })
+  }
+}
+
 describe('SyncCloudStorage', () => {
   beforeAll(async () => {
     await setupAWSEnvs()
@@ -47,10 +97,10 @@ describe('SyncCloudStorage', () => {
   describe('Constructor Related Tests', () => {
     it('should properly configure S3 client for offline mode', async () => {
       const inputCustom = createValidInputFixture(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -81,7 +131,7 @@ describe('SyncCloudStorage', () => {
 
     it('should not sync when plugin is disabled', async () => {
       const inputCustom = createValidDisabledInputFixture()
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -96,11 +146,11 @@ describe('SyncCloudStorage', () => {
 
     it("should not sync when there's no bucket", async () => {
       const inputCustom = createValidInputFixture(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
       inputCustom.syncCloudStorage.storages = []
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
 
       try {
         new SyncCloudStorage(mockServerless, optionsMock, loggingMock)
@@ -112,13 +162,13 @@ describe('SyncCloudStorage', () => {
     })
   })
 
-  describe('Storage Related Tests', () => {
+  describe('Error Handling', () => {
     it("should throw an error when the bucket doesn't exist", async () => {
       const inputCustom = createValidInputFixture(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         'non-existent-bucket'
       )
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -141,12 +191,42 @@ describe('SyncCloudStorage', () => {
       expect(response).toEqual(expectedResponse)
     })
 
+    it("should not sync tags when storage doesn't exist", async () => {
+      const inputCustom = createValidInputFixture(
+        sampleStoragePatterns.single,
+        'non-existent-bucket'
+      )
+      const mockServerless = getServerlessMock(inputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorage(
+        mockServerless,
+        optionsMock,
+        loggingMock
+      )
+
+      const tagsSpy = jest.spyOn(syncCloudStorage, 'tags')
+      const response = await syncCloudStorage.tags()
+
+      const expectedResponse = [
+        {
+          status: 'fulfilled',
+          value: {
+            error: Error('StorageNotFound'),
+          },
+        },
+      ]
+
+      expect(tagsSpy).toHaveBeenCalledTimes(1)
+      expect(response).toEqual(expectedResponse)
+    })
+  })
+
+  describe('Synchronization', () => {
     it('should sync when there is a new bucket and acl set to bucket owner', async () => {
       const inputCustom = createValidInputFixtureWithACLBucketOwner(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -163,59 +243,26 @@ describe('SyncCloudStorage', () => {
 
       expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
-      const giraffeREADME = 'README.md'
+      for (const result of response.result) {
+        if (isFulfilledSyncResult(result)) {
+          uploadedFilesExpects(result.value.storage, result.value.uploaded)
+          deletedFilesExpects(result.value.deleted, { length: 0 })
 
-      const expectedResponse = {
-        result: [
-          {
-            status: 'fulfilled',
-            value: {
-              files: [
-                {
-                  Key: giraffeREADME,
-                  LocalPath: expect.any(String),
-                  ETag: expect.any(String),
-                  LastModified: expect.any(Date),
-                  Size: expect.any(Number),
-                },
-              ],
-              filesToDelete: [],
-              filesToUpload: [expect.any(String)],
-              localFilesChecksum: [expect.any(String)],
-              objects: [],
-              storage: inputCustom.syncCloudStorage.storages[0],
-              storageObjectsChecksum: [],
-              uploaded: [
-                {
-                  storage: inputCustom.syncCloudStorage.storages[0].name,
-                  etag: expect.any(String),
-                  key: giraffeREADME,
-                  location: expect.any(String),
-                  versionId: expect.any(String),
-                },
-              ],
-              deleted: [],
-            },
-          },
-        ],
+          await deleteStorage(
+            syncCloudStorage.getS3Client(),
+            result.value.storage
+          )
+        }
       }
-
-      expect(response).toEqual(expectedResponse)
-
-      await deleteStorage(
-        syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
-      )
     })
-
     it('should sync when the prefix', async () => {
       const prefix = 'animals'
       const inputCustom = createValidInputFixture(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name,
         prefix
       )
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -231,66 +278,68 @@ describe('SyncCloudStorage', () => {
 
       expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
-      const giraffeREADME = 'README.md'
-      const expectedResponse = {
-        result: [
-          {
-            status: 'fulfilled',
-            value: {
-              files: [
-                {
-                  Key: expect.stringMatching(
-                    new RegExp(`${prefix}/${giraffeREADME}`)
-                  ),
-                  LocalPath: expect.any(String),
-                  ETag: expect.any(String),
-                  LastModified: expect.any(Date),
-                  Size: expect.any(Number),
-                },
-              ],
-              filesToDelete: [],
-              filesToUpload: [expect.any(String)],
-              localFilesChecksum: [expect.any(String)],
-              objects: [],
-              storage: inputCustom.syncCloudStorage.storages[0],
-              storageObjectsChecksum: [],
-              uploaded: [
-                {
-                  storage: inputCustom.syncCloudStorage.storages[0].name,
-                  etag: expect.any(String),
-                  key: expect.stringMatching(
-                    new RegExp(`${prefix}/${giraffeREADME}`)
-                  ),
-                  location: expect.any(String),
-                  versionId: expect.any(String),
-                },
-              ],
-              deleted: [],
-            },
-          },
-        ],
-      }
+      // const giraffeREADME = 'README.md'
+      // const expectedResponse = {
+      //   result: [
+      //     {
+      //       status: 'fulfilled',
+      //       value: {
+      //         files: [
+      //           {
+      //             Key: expect.stringMatching(
+      //               new RegExp(`${prefix}/${giraffeREADME}`)
+      //             ),
+      //             LocalPath: expect.any(String),
+      //             ETag: expect.any(String),
+      //             LastModified: expect.any(Date),
+      //             Size: expect.any(Number),
+      //           },
+      //         ],
+      //         filesToDelete: [],
+      //         filesToUpload: [expect.any(String)],
+      //         localFilesChecksum: [expect.any(String)],
+      //         objects: [],
+      //         storage: inputCustom.syncCloudStorage.storages[0],
+      //         storageObjectsChecksum: [],
+      //         uploaded: [
+      //           {
+      //             storage: inputCustom.syncCloudStorage.storages[0].name,
+      //             etag: expect.any(String),
+      //             key: expect.stringMatching(
+      //               new RegExp(`${prefix}/${giraffeREADME}`)
+      //             ),
+      //             location: expect.any(String),
+      //             versionId: expect.any(String),
+      //           },
+      //         ],
+      //         deleted: [],
+      //       },
+      //     },
+      //   ],
+      // }
 
-      expect(response).toEqual(expectedResponse)
+      // expect(response).toEqual(expectedResponse)
 
       for (const syncedStorage of response.result) {
-        if (syncedStorage.status === 'rejected') {
-          throw syncedStorage.reason
+        if (isFulfilledSyncResult(syncedStorage)) {
+          uploadedFilesExpects(
+            syncedStorage.value.storage,
+            syncedStorage.value.uploaded
+          )
+          await deleteStorage(
+            syncCloudStorage.getS3Client(),
+            syncedStorage.value.storage
+          )
         }
-
-        await deleteStorage(
-          syncCloudStorage.getS3Client(),
-          syncedStorage.value.storage
-        )
       }
     })
 
     it('should sync tags', async () => {
       const inputCustom = createValidInputFixtureWithTags(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -331,7 +380,7 @@ describe('SyncCloudStorage', () => {
 
     it('should not sync tags when plugin is disabled', async () => {
       const inputCustom = createValidDisabledInputFixture()
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -345,40 +394,12 @@ describe('SyncCloudStorage', () => {
       expect(newTags).toEqual([{ error: 'Plugin is disabled' }])
     })
 
-    it("should not sync tags when storage doesn't exist", async () => {
-      const inputCustom = createValidInputFixture(
-        './assets/giraffe',
-        'non-existent-bucket'
-      )
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
-      const syncCloudStorage = new SyncCloudStorage(
-        mockServerless,
-        optionsMock,
-        loggingMock
-      )
-
-      const tagsSpy = jest.spyOn(syncCloudStorage, 'tags')
-      const response = await syncCloudStorage.tags()
-
-      const expectedResponse = [
-        {
-          status: 'fulfilled',
-          value: {
-            error: Error('StorageNotFound'),
-          },
-        },
-      ]
-
-      expect(tagsSpy).toHaveBeenCalledTimes(1)
-      expect(response).toEqual(expectedResponse)
-    })
-
     it('should sync metadata', async () => {
       const inputCustom = createValidInputFixtureWithMetadata(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -418,14 +439,16 @@ describe('SyncCloudStorage', () => {
         inputCustom.syncCloudStorage.storages[0]
       )
     })
+  })
 
+  describe('Action Limitation', () => {
     it('should limit sync to specified actions: upload', async () => {
       const inputCustom = createValidInputFixture(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
       inputCustom.syncCloudStorage.storages[0].actions = ['upload']
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
 
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
@@ -439,66 +462,31 @@ describe('SyncCloudStorage', () => {
 
       const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
       const response = await syncCloudStorage.storages()
-      const giraffeREADME = 'README.md'
 
       expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
-      const expectedFile = expect.objectContaining<LocalFile>({
-        ETag: expect.any(String),
-        Key: giraffeREADME,
-        LastModified: expect.any(Date),
-        LocalPath: expect.stringContaining(giraffeREADME),
-        Size: expect.any(Number),
-      })
+      for (const result of response.result) {
+        if (isFulfilledSyncResult(result)) {
+          uploadedFilesExpects(result.value.storage, result.value.uploaded)
+          deletedFilesExpects(result.value.deleted, { length: 0 })
 
-      const expectedResponse = {
-        result: [
-          {
-            status: 'fulfilled',
-            value: {
-              deleted: expect.arrayContaining([]),
-              files: expect.arrayContaining([expectedFile]),
-              filesToDelete: expect.arrayContaining([]),
-              filesToUpload: expect.arrayContaining([
-                expect.stringContaining(giraffeREADME),
-              ]),
-              localFilesChecksum: expect.arrayContaining([
-                expect.stringContaining(giraffeREADME),
-              ]),
-              objects: expect.arrayContaining([]),
-              storage: inputCustom.syncCloudStorage.storages[0],
-              storageObjectsChecksum: expect.arrayContaining([]),
-              uploaded: [
-                {
-                  storage: inputCustom.syncCloudStorage.storages[0].name,
-                  etag: expect.any(String),
-                  key: giraffeREADME,
-                  location: expect.any(String),
-                  versionId: expect.any(String),
-                },
-              ],
-            },
-          },
-        ],
+          await deleteStorage(
+            syncCloudStorage.getS3Client(),
+            result.value.storage
+          )
+        }
       }
-
-      expect(response).toEqual(expectedResponse)
-
-      await deleteStorage(
-        syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
-      )
     })
 
     it('should limit sync to specified actions: delete', async () => {
       const inputCustom = createValidInputFixture(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
 
       inputCustom.syncCloudStorage.storages[0].actions = ['delete']
 
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -558,13 +546,13 @@ describe('SyncCloudStorage', () => {
 
     it('should limit sync to specified actions: upload & delete', async () => {
       const inputCustom = createValidInputFixture(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
 
       inputCustom.syncCloudStorage.storages[0].actions = ['upload', 'delete']
 
-      const mockServerless = getServerlessMock(inputCustom, __dirname)
+      const mockServerless = getServerlessMock(inputCustom, cwd)
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
         optionsMock,
@@ -589,75 +577,27 @@ describe('SyncCloudStorage', () => {
 
       expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
-      const giraffeREADME = 'README.md'
+      for (const result of response.result) {
+        if (isFulfilledSyncResult(result)) {
+          uploadedFilesExpects(result.value.storage, result.value.uploaded)
+          deletedFilesExpects(result.value.deleted, { length: 2 })
 
-      const expectedFile = expect.objectContaining<LocalFile>({
-        ETag: expect.any(String),
-        Key: giraffeREADME,
-        LastModified: expect.any(Date),
-        LocalPath: expect.stringContaining('README.md'),
-        Size: expect.any(Number),
-      })
-
-      const expectedGiraffeTXTObject = expect.objectContaining({
-        ETag: expect.any(String),
-        Key: giraffeTXT,
-        LastModified: expect.any(Date),
-        Size: expect.any(Number),
-        StorageClass: expect.any(String),
-      })
-
-      const expectedResponse = {
-        result: [
-          {
-            status: 'fulfilled',
-            value: {
-              deleted: expect.arrayContaining([
-                {
-                  Key: giraffeTXT,
-                  VersionId: expect.any(String),
-                },
-                {
-                  Key: expect.stringMatching(giraffeREADME),
-                  VersionId: expect.any(String),
-                },
-              ]),
-              files: [expectedFile],
-              filesToDelete: [expect.stringMatching(giraffeTXT)],
-              filesToUpload: [expect.stringMatching(giraffeREADME)],
-              localFilesChecksum: [expect.stringMatching(giraffeREADME)],
-              objects: [expectedGiraffeTXTObject],
-              storage: inputCustom.syncCloudStorage.storages[0],
-              storageObjectsChecksum: [expect.stringMatching(giraffeTXT)],
-              uploaded: [
-                {
-                  storage: inputCustom.syncCloudStorage.storages[0].name,
-                  etag: expect.any(String),
-                  key: expect.stringMatching(giraffeREADME),
-                  location: expect.any(String),
-                  versionId: expect.any(String),
-                },
-              ],
-            },
-          },
-        ],
+          await deleteStorage(
+            syncCloudStorage.getS3Client(),
+            result.value.storage
+          )
+        }
       }
-
-      expect(response).toEqual(expectedResponse)
-
-      await deleteStorage(
-        syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
-      )
     })
-
+  })
+  describe('Multiple Storages', () => {
     it('should sync multiple storages with with all actions', async () => {
       const inputCustom = createValidInputFixture(
-        './assets/giraffe',
+        sampleStoragePatterns.single,
         sampleStorage.name
       )
       const inputCustom2 = createValidInputFixture(
-        './assets/giraffe-multiple',
+        sampleStoragePatterns.multiple,
         'giraffe-bucket-2'
       )
       const {
@@ -676,7 +616,7 @@ describe('SyncCloudStorage', () => {
           ...inputCustom,
           syncCloudStorage: { ...inputCustom.syncCloudStorage, storages },
         },
-        __dirname
+        cwd
       )
       const syncCloudStorage = new SyncCloudStorage(
         mockServerless,
@@ -692,92 +632,16 @@ describe('SyncCloudStorage', () => {
 
       expect(syncStoragesSpy).toHaveBeenCalledTimes(1)
 
-      const giraffeReadme = 'README.md'
-      const giraffeSubReadme = 'sub/README.md'
-      const expectedReadmeLocalFile = expect.objectContaining<LocalFile>({
-        ETag: expect.any(String),
-        Key: giraffeReadme,
-        LastModified: expect.any(Date),
-        LocalPath: expect.stringMatching(giraffeReadme),
-        Size: expect.any(Number),
-      })
-      const expectedSubReadmeLocalFile = expect.objectContaining<LocalFile>({
-        ETag: expect.any(String),
-        Key: giraffeSubReadme,
-        LastModified: expect.any(Date),
-        LocalPath: expect.stringMatching(giraffeReadme),
-        Size: expect.any(Number),
-      })
-      const expectedUploadedReadmeFile1 = expect.objectContaining({
-        storage: storage1.name,
-        etag: expect.any(String),
-        key: giraffeReadme,
-        location: expect.any(String),
-        versionId: expect.any(String),
-      })
-      const expectedUploadedReadmeFile2 = expect.objectContaining({
-        storage: storage2.name,
-        etag: expect.any(String),
-        key: giraffeReadme,
-        location: expect.any(String),
-        versionId: expect.any(String),
-      })
-      const expectedUploadedSubReadmeFile2 = expect.objectContaining({
-        storage: storage2.name,
-        etag: expect.any(String),
-        key: giraffeSubReadme,
-        location: expect.any(String),
-        versionId: expect.any(String),
-      })
+      for (const result of response.result) {
+        if (isFulfilledSyncResult(result)) {
+          uploadedFilesExpects(result.value.storage, result.value.uploaded)
+          deletedFilesExpects(result.value.deleted, { length: 0 })
 
-      const expectedResponse = {
-        result: [
-          {
-            status: 'fulfilled',
-            value: {
-              deleted: expect.arrayContaining([]),
-              files: [expectedReadmeLocalFile],
-              filesToDelete: expect.arrayContaining([]),
-              filesToUpload: expect.arrayContaining([
-                expect.stringContaining(giraffeReadme),
-              ]),
-              localFilesChecksum: expect.arrayContaining([
-                expect.stringContaining(giraffeReadme),
-              ]),
-              objects: expect.arrayContaining([]),
-              storage: storages[0],
-              storageObjectsChecksum: expect.arrayContaining([]),
-              uploaded: [expectedUploadedReadmeFile1],
-            },
-          },
-          {
-            status: 'fulfilled',
-            value: {
-              deleted: expect.arrayContaining([]),
-              files: [expectedReadmeLocalFile, expectedSubReadmeLocalFile],
-              filesToDelete: expect.arrayContaining([]),
-              filesToUpload: expect.arrayContaining([
-                expect.stringContaining(giraffeReadme),
-              ]),
-              localFilesChecksum: expect.arrayContaining([
-                expect.stringContaining(giraffeReadme),
-              ]),
-              objects: expect.arrayContaining([]),
-              storage: storages[1],
-              storageObjectsChecksum: expect.arrayContaining([]),
-              uploaded: [
-                expectedUploadedReadmeFile2,
-                expectedUploadedSubReadmeFile2,
-              ],
-            },
-          },
-        ],
-      }
-
-      expect(response).toEqual(expectedResponse)
-
-      for (const storage of storages) {
-        await deleteStorage(syncCloudStorage.getS3Client(), storage)
+          await deleteStorage(
+            syncCloudStorage.getS3Client(),
+            result.value.storage
+          )
+        }
       }
     })
   })

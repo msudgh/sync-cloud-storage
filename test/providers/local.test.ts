@@ -1,30 +1,40 @@
-import path from 'path'
-
 import { getLocalFiles } from '../../src/providers/local/objects'
 import { createValidInputFixture } from '../schemas/input.fixture'
 
 describe('Local File Provider', () => {
-  it('should return files and directories', async () => {
-    const localPath = path.resolve(
-      __dirname,
-      '..',
-      'assets',
-      'giraffe-multiple'
-    )
+  it('should return files', async () => {
+    const patterns = ['test/assets/giraffe-multiple']
     const {
       syncCloudStorage: {
         storages: [storage],
       },
-    } = createValidInputFixture(localPath)
-    const expectedFiles = ['sub/README.md', 'README.md']
-    const numberOfFiles = expectedFiles.length
-    const filesToUpload = await getLocalFiles(localPath, storage)
-    const filesToUploadKeys = filesToUpload.map((file) => file.Key)
+    } = createValidInputFixture(patterns)
+    const expectedFiles = [
+      'test/assets/giraffe-multiple/README.md',
+      'test/assets/giraffe-multiple/sub/README.md',
+    ]
+    const filesToUpload = await getLocalFiles(patterns, storage, process.cwd())
+    const filesToUploadKeys = filesToUpload.map((file) => file.key)
 
-    for (const file of expectedFiles) {
-      expect(filesToUploadKeys.includes(file)).toEqual(true)
-    }
+    expect.assertions(1)
+    expect(expectedFiles).toStrictEqual(filesToUploadKeys)
+  })
 
-    expect(filesToUploadKeys).toHaveLength(numberOfFiles)
+  it('should return files that are not ignored', async () => {
+    const patterns = [
+      'test/assets/giraffe-multiple',
+      '!test/assets/giraffe-multiple/README.md',
+    ]
+    const {
+      syncCloudStorage: {
+        storages: [storage],
+      },
+    } = createValidInputFixture(patterns)
+    const expectedFiles = ['test/assets/giraffe-multiple/sub/README.md']
+    const filesToUpload = await getLocalFiles(patterns, storage, process.cwd())
+    const filesToUploadKeys = filesToUpload.map((file) => file.key)
+
+    expect.assertions(1)
+    expect(expectedFiles).toStrictEqual(filesToUploadKeys)
   })
 })

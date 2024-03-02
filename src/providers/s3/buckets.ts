@@ -46,13 +46,13 @@ export const storageExists = async (
  * @memberof S3
  * @param {S3Client} client
  * @param {Storage} storage
- * @param {string} servicePath - Root directory of the service
+ * @param {string} cwd - Current working directory
  * @returns {SyncResult}
  */
 export const sync = async (
   client: S3Client,
   storage: Storage,
-  servicePath: string
+  cwd: string
 ): Promise<StoragesSyncResult> => {
   const { name } = storage
   const storageExist = await storageExists(client, name)
@@ -63,12 +63,9 @@ export const sync = async (
 
   logger.info('Syncing storage', { storage: storage.name })
 
-  const files = await getLocalFiles(
-    path.join(servicePath, storage.localPath),
-    storage
-  )
+  const files = await getLocalFiles(storage.patterns, storage, cwd)
   const localFilesChecksum = files.map((file) =>
-    getChecksum(file.Key, file.ETag)
+    getChecksum(file.key, file.etag)
   )
 
   const objects = await listObjects(client, storage)

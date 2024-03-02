@@ -6,7 +6,7 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   transports: [new winston.transports.Console()],
-  level: 'info',
+  level: process.env.LOG_LEVEL ?? 'info',
   levels: winston.config.syslog.levels,
 })
 

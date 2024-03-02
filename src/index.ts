@@ -7,7 +7,7 @@ import ServerlessPlugin from 'serverless/classes/Plugin'
 import { InvalidConfigError } from './errors'
 import { sync, syncMetadata, syncTags } from './providers/s3/buckets'
 import { Custom, Storage, custom } from './schemas/input'
-import { IServerless, MethodReturn, TagsSyncResults } from './types'
+import { IServerless, MethodReturn, SyncResult, TagsSyncResults } from './types'
 import logger from './utils/logger'
 
 /**
@@ -128,20 +128,27 @@ class SyncCloudStorage implements ServerlessPlugin {
    */
   async storages() {
     const isPluginDisable = this.disableCheck().result
+    const result: SyncResult[] = []
 
     if (isPluginDisable) {
-      return { result: [] }
+      return { result }
     }
 
-    const syncedStorages = await Promise.allSettled(
-      this._storages.map((bucket) =>
-        sync(this.client, bucket, this.servicePath)
-      )
+    const storagesToSync = this._storages.map((bucket) =>
+      sync(this.client, bucket, this.servicePath)
     )
+
+    await Promise.allSettled(storagesToSync)
+      .then((results) => {
+        result.push(...results)
+      })
+      .catch((error) => {
+        result.push({ reason: error, status: 'rejected' })
+      })
 
     await this.onExit()
 
-    return { result: syncedStorages }
+    return { result }
   }
 
   /**
@@ -205,4 +212,3 @@ class SyncCloudStorage implements ServerlessPlugin {
 }
 
 export default SyncCloudStorage
-module.exports = SyncCloudStorage

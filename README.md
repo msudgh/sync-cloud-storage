@@ -37,7 +37,8 @@ plugins:
 custom:
   syncCloudStorage:
     - name: my-bucket
-      localPath: ./assets
+      patterns:
+        - assets/*
       actions:
         - upload
         - delete

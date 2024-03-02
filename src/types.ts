@@ -29,11 +29,12 @@ export interface ExtendedServerlessProvider extends IServerlessProvider {
 }
 
 export type LocalFile = {
-  Key: string
-  ETag: string
-  Size: number
-  LastModified: Date
-  LocalPath: string
+  fileName: string
+  localPath: string
+  key: string
+  etag?: string
+  size?: number
+  lastModified?: Date
 }
 
 export type UploadedObject = {
@@ -85,3 +86,19 @@ export type SyncMetadataReturn = Array<
     Metadata: Record<string, string> | undefined
   }
 >
+
+interface SyncFulfilledResult {
+  status: 'fulfilled'
+  value: StoragesSyncResult
+}
+
+interface SyncRejectedResult {
+  status: 'rejected'
+  reason: unknown
+}
+
+export type SyncResult = SyncFulfilledResult | SyncRejectedResult
+
+export const isFulfilledSyncResult = (
+  result: SyncResult
+): result is SyncFulfilledResult => result.status === 'fulfilled'
