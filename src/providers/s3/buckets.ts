@@ -203,7 +203,7 @@ export const syncTags = async (
       }
     }
 
-    const mergedTagSet = mergeTags(existingTagSet.TagSet, storage.tags ?? {})
+    const mergedTagSet = mergeTags(existingTagSet.TagSet, storage.tags)
 
     await client.send(
       new PutBucketTaggingCommand({
