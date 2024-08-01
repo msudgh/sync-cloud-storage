@@ -6,11 +6,14 @@ updates:
       interval: 'monthly'
       time: '09:00'
       day: 'sunday'
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 1
     reviewers:
       - 'msudgh'
     versioning-strategy: increase
+    allow:
+      - dependency-type: 'production'
     groups:
       production-dependencies:
         applies-to: 'security-updates'
         dependency-type: 'production'
+    target-branch: 'develop'
