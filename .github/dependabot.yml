@@ -13,7 +13,7 @@ updates:
     allow:
       - dependency-type: 'production'
     groups:
-      production-dependencies:
+      security-update-for-dependencies:
         applies-to: 'security-updates'
         dependency-type: 'production'
     target-branch: 'develop'
