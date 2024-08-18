@@ -11,6 +11,7 @@ export default {
     '/node_modules/',
     './test/setupEnvs.ts',
     './test/mocks',
+    './test/schemas/input.fixture.ts',
   ],
   transform: {
     '^.+\\.ts$': [

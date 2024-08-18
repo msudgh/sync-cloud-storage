@@ -12,7 +12,7 @@ import { Upload } from '@aws-sdk/lib-storage'
 
 import { Storage } from '../../schemas/input'
 import { LocalFile } from '../../types'
-import logger from '../../utils/logger'
+import { logger } from '../../utils/logger'
 import { getChecksum, getContentType } from '../../utils/objects'
 
 /**

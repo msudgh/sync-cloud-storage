@@ -5,40 +5,30 @@
 [![Codecov Status](https://codecov.io/gh/msudgh/sync-cloud-storage/branch/main/graph/badge.svg?token=2BY6063VOY)](https://codecov.io/gh/msudgh/sync-cloud-storage)
 [![License](https://img.shields.io/github/license/msudgh/sync-cloud-storage)](LICENSE)
 
-Synchronize files and directories between a remote computer and multiple Serverless cloud providers' storages.
-
-Supported cloud providers:
-
-- [x] AWS S3
+Synchronize files and directories between a remote machine and a cloud storage via cloud frameworks and stacks consisting of [AWS SAM (Serverless)](https://www.serverless.com/) and [AWS Cloud Development Kit (CDK)](https://aws.amazon.com/cdk/). This package supports the following cloud storage providers: [AWS S3](https://aws.amazon.com/s3/).
 
 ## Features
 
+- Sync multiple storages at once and flexible file matching (single or multiple file/dir sync) by defining patterns of [`glob`](<https://en.wikipedia.org/wiki/Glob_(programming)>) to include or exclude
+- Supports a set of options as following for each file based on storage: `Prefix`, `Access Control List (ACL)`, `Tags`, `Metadata`
+- Select a list of specific sync actions for each storage: `uploading`, `deleting`
 - Modern and uses the latest official cloud provider's SDK
   - AWS S3: [`aws-sdk@3.x`](https://www.npmjs.com/package/@aws-sdk/client-s3)
-- Sync multiple storages at once and flexible file matching (single or multiple file/dir sync) by just defining patterns of [`glob`](<https://en.wikipedia.org/wiki/Glob_(programming)>) to include or exclude
-- Set the following configs for each synced file:
-  - prefix
-  - access control list (ACL)
-  - tags
-  - metadata
-- Select a list of specific sync actions for each storage:
-  - upload
-  - delete
-- Written in **TypeScript** with strong type checking
-- Integration test with cloud providers
 
 ## Installation
 
-1. [**ni**](https://github.com/antfu/ni): `ni sync-cloud-storage -D`
-2. [**npm**](https://npmjs.com/): `npm i sync-cloud-storage -D`
-3. [**yarn**](https://yarnpkg.com/): `yarn add sync-cloud-storage -D`
-4. [**pnpm**](https://pnpm.io/): `pnpm add sync-cloud-storage -D`
+- [**npm**](https://npmjs.com/): `npm i sync-cloud-storage`
+- [**yarn**](https://yarnpkg.com/): `yarn add sync-cloud-storage`
+- [**pnpm**](https://pnpm.io/): `pnpm add sync-cloud-storage`
+- [**ni**](https://github.com/antfu/ni): `ni sync-cloud-storage`
 
 ## Usage
 
-### Serverless
+### AWS S3
 
-#### AWS S3
+#### Serverless
+
+Sync storages action as a pre-deploy hook in the `serverless.yml`:
 
 ```yaml
 plugins:
@@ -59,79 +49,69 @@ custom:
         bar: foo
 ```
 
-## Configuration Reference
+#### CDK
 
-This section provides a detailed reference for all configuration options.
+Call sync storages action after setting up a CDK App:
 
-- `name`:
+```typescript
+import { Stack, App } from '@aws-cdk/core'
+import SyncCloudStorage from 'sync-cloud-storage'
 
-  - Type: `string`
-  - Required: `true`
-  - Minimum length: 1
-  - Example: `name: assets`
+const app = new App()
+const stack = new Stack(app, 'MyStack')
+const syncCloudStorage = new SyncCloudStorage(stack, {
+  storages: [
+    {
+      name: 'my-bucket',
+      patterns: ['assets/*'],
+      actions: ['upload', 'delete'],
+      prefix: 'assets',
+      acl: 'public-read',
+      metadata: {
+        foo: 'bar',
+        bar: 'foo',
+      },
+    },
+  ],
+})
 
-- `patterns`: File patterns to include or exclude during synchronization.
+// Sync storages
+syncCloudStorage.storages()
 
-  - Type: `array` of `string`
-  - Required: `true`
-  - Minimum items: 1
-  - Example:
-    ```yaml
-    patterns:
-      - 'assets/*'
-      - '!assets/temp/*'
-    ```
+// Sync tags
+syncCloudStorage.tags()
 
-- `actions`: List of actions to perform during synchronization.
+// Sync metadata
+syncCloudStorage.metadata()
+```
 
-  - Type: `array` of `string`
-  - Required: `true`
-  - Valid Values: `upload`, `delete`
-  - Example:
-    ```yaml
-    actions:
-      - upload
-      - delete
-    ```
+## Options
 
-- `prefix`: The prefix to apply to all synced files in the bucket.
+### General
 
-  - Type: `string`
-  - Required: `false`
-  - Default: `""`
-  - Example: `prefix: assets`
+| Option   | Notes                              | Type                             | Required | Default                                              |
+| -------- | ---------------------------------- | -------------------------------- | -------- | ---------------------------------------------------- |
+| storages | List of storages, Minimum items: 1 | `array` of [`storage`](#storage) | true     | undefined                                            |
+| region   | Cloud (AWS) region                 | `string`                         | false    | undefined or `AWS_REGION` environment variable       |
+| endpoint | Cloud (AWS) Endpoint URL           | `string`                         | false    | undefined or `AWS_ENDPOINT_URL` environment variable |
+| offline  | Offline mode                       | `boolean`                        | false    | false or `IS_OFFLINE` environment variable           |
+| disabled | Disable sync                       | `boolean`                        | false    | false                                                |
+| silent   | Silent output logs                 | `boolean`                        | false    | false                                                |
 
-- `enabled`: Whether to enable the sync for the storage.
+### Storage
 
-  - Type: `boolean`
-  - Required: `false`
-  - Default: `true`
+| Option      | Notes                                                                                                       | Type                | Required | Default            |
+| ----------- | ----------------------------------------------------------------------------------------------------------- | ------------------- | -------- | ------------------ |
+| name        | Name of storage (AWS S3 Bucket), Minimum length: 1                                                          | `string`            | true     | undefined          |
+| patterns    | Patterns of [`glob`][glob] paths to include or exclude on sync action, Minimum items: 1                     | `array` of `string` | true     | undefined          |
+| actions     | Sync actions, Valid values: `upload`, `delete`                                                              | `array` of `string` | false    | `upload`, `delete` |
+| prefix      | Prefix for the storage files and folders                                                                    | `string`            | false    | `''`               |
+| enabled     | Enable or disable the storage on sync action                                                                | `boolean`           | false    | `true`             |
+| acl         | [AWS S3 Canned ACL][acl], Valid values: `private`, `public-read`, `public-read-write`, `authenticated-read` | `string`            | false    | undefined          |
+| metadata    | A set of metadata key/value pair to be set or unset on the object                                           | `object`            | false    | undefined          |
+| tags        | A set of tag key/value pair to be set or unset on the object                                                | `object`            | false    | `{}`               |
+| gitignore   | Use .gitignore file to exclude files and directories                                                        | `boolean`           | false    | false              |
+| ignoreFiles | Ignore files and directories to exclude from sync action                                                    | `array` of `string` | false    | undefined          |
 
-- `acl`: Access control list setting for the synced files.
-
-  - Type: `string`
-  - Required: `false`
-  - Valid Values: `private`, `public-read`, `public-read-write`, `authenticated-read`
-  - Reference: [AWS S3 Canned ACL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl)
-  - Example: `acl: public-read`
-
-- `metadata`: Custom metadata to apply to the synced files.
-
-  - Type: `object`
-  - Required: `false`
-  - Example:
-    ```yaml
-    metadata:
-      foo: bar
-      bar: foo
-    ```
-
-- `tags`: Custom tags to apply to the synced files.
-  - Type: `object`
-  - Required: `false`
-  - Default: `{}`
-  - Example:
-    ```yaml
-    tags:
-      environment: production
-    ```
+[glob]: https://en.wikipedia.org/wiki/Glob_(programming)
+[acl]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl

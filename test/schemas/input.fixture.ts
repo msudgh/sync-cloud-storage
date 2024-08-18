@@ -1,6 +1,10 @@
 import { faker } from '@faker-js/faker'
 
-import { Custom, Storage, objectCannedACLs } from '../../src/schemas/input'
+import {
+  CustomOptions,
+  Storage,
+  objectCannedACLs,
+} from '../../src/schemas/input'
 import { DeepPartial } from '../../src/types'
 
 export const sampleStoragePatterns = {
@@ -10,154 +14,132 @@ export const sampleStoragePatterns = {
 
 export const sampleStorage: Storage = {
   name: 'my-static-site-assets',
-  prefix: 'animals',
   patterns: sampleStoragePatterns.single,
   actions: ['upload', 'delete'],
-  acl: undefined,
+  prefix: '',
   enabled: true,
+  acl: undefined,
   tags: {},
-  ignoreFiles: [],
+  metadata: {},
   gitignore: false,
+  ignoreFiles: [],
 }
 
-const createBaseInputFixture = (): Required<Custom> => ({
+const generateStorage = (overrides: Partial<Storage> = {}): Storage => ({
+  ...sampleStorage,
+  name: faker.internet.domainName(),
+  patterns: sampleStoragePatterns.single,
+  prefix: faker.lorem.word(),
+  enabled: faker.datatype.boolean(),
+  acl: faker.helpers.arrayElement(objectCannedACLs),
+  tags: { tagKey: faker.lorem.word() },
+  metadata: { exampleKey: faker.lorem.word() },
+  ...overrides,
+})
+
+const createBaseInputFixture = (): Required<CustomOptions> => ({
   syncCloudStorage: {
     disabled: faker.datatype.boolean(),
-    storages: [
-      {
-        name: faker.internet.domainName(),
-        patterns: sampleStoragePatterns.single,
-        actions: ['upload', 'delete'],
-        prefix: faker.lorem.word(),
-        enabled: faker.datatype.boolean(),
-        acl: faker.helpers.arrayElement(objectCannedACLs),
-        metadata: {
-          exampleKey: faker.lorem.word(),
-        },
-        tags: {
-          tagKey: faker.lorem.word(),
-        },
-        ignoreFiles: [],
-        gitignore: false,
-      },
-    ],
+    storages: [generateStorage()],
     endpoint: faker.internet.url(),
     offline: faker.datatype.boolean(),
+    region: process.env.AWS_REGION || '',
+    silent: false,
+  },
+})
+
+interface FixtureOptions {
+  patterns?: string[]
+  name?: string
+  prefix?: string
+  endpoint?: string
+  region?: string
+  silent?: boolean
+  storageOverrides?: Partial<Storage>
+}
+
+const createCustomInputFixture = ({
+  patterns = sampleStoragePatterns.single,
+  name = '',
+  prefix = '',
+  endpoint = '',
+  region = process.env.AWS_REGION || '',
+  silent = false,
+  storageOverrides = {},
+}: FixtureOptions = {}): CustomOptions => ({
+  syncCloudStorage: {
+    disabled: false,
+    endpoint,
+    offline: true,
+    region,
+    silent,
+    storages: [
+      {
+        ...sampleStorage,
+        name,
+        patterns,
+        prefix,
+        ...storageOverrides,
+      },
+    ],
   },
 })
 
 export const createValidInputFixture = (
-  patterns: string[],
-  name = '',
-  prefix = '',
-  endpoint = process.env.AWS_ENDPOINT_URL
-): Required<Custom> => {
-  return {
-    syncCloudStorage: {
-      disabled: false,
-      endpoint: endpoint,
-      offline: true,
-      storages: [
-        {
-          ...sampleStorage,
-          name,
-          patterns,
-          prefix: prefix,
-        },
-      ],
-    },
-  }
-}
+  options: FixtureOptions = {}
+): CustomOptions => createCustomInputFixture(options)
+
+export const createValidCdkInputFixture = (
+  options: FixtureOptions = {}
+): CustomOptions['syncCloudStorage'] =>
+  createValidInputFixture(options).syncCloudStorage
 
 export const createValidInputFixtureWithACLBucketOwner = (
-  patterns: string[],
-  name = '',
-  prefix = '',
-  endpoint = process.env.AWS_ENDPOINT_URL
-): Required<Custom> => {
-  return {
-    syncCloudStorage: {
-      disabled: false,
-      endpoint: endpoint,
-      offline: true,
-      storages: [
-        {
-          ...sampleStorage,
-          name,
-          patterns,
-          prefix: prefix,
-          acl: 'bucket-owner-full-control',
-        },
-      ],
+  options: FixtureOptions = {}
+): Required<CustomOptions> =>
+  createCustomInputFixture({
+    ...options,
+    storageOverrides: {
+      ...options.storageOverrides,
+      acl: 'bucket-owner-full-control',
     },
-  }
-}
+  })
 
 export const createValidInputFixtureWithTags = (
-  patterns: string[],
-  name = '',
-  prefix = '',
-  endpoint = process.env.AWS_ENDPOINT_URL
-): Required<Custom> => {
-  return {
-    syncCloudStorage: {
-      disabled: false,
-      endpoint,
-      offline: true,
-      storages: [
-        {
-          ...sampleStorage,
-          name,
-          patterns,
-          prefix,
-          tags: {
-            [faker.lorem.word()]: faker.lorem.word(),
-          },
-        },
-      ],
+  options: FixtureOptions = {}
+): Required<CustomOptions> =>
+  createCustomInputFixture({
+    ...options,
+    storageOverrides: {
+      ...options.storageOverrides,
+      tags: { [faker.lorem.word()]: faker.lorem.word() },
     },
-  }
-}
+  })
 
 export const createValidInputFixtureWithMetadata = (
-  patterns: string[],
-  name = '',
-  prefix = '',
-  endpoint = process.env.AWS_ENDPOINT_URL
-): Required<Custom> => {
-  return {
-    syncCloudStorage: {
-      disabled: false,
-      endpoint,
-      offline: true,
-      storages: [
-        {
-          ...sampleStorage,
-          name,
-          patterns,
-          prefix,
-          metadata: {
-            [faker.lorem.word()]: faker.lorem.word(),
-          },
-        },
-      ],
+  options: FixtureOptions = {}
+): Required<CustomOptions> =>
+  createCustomInputFixture({
+    ...options,
+    storageOverrides: {
+      ...options.storageOverrides,
+      metadata: { [faker.lorem.word()]: faker.lorem.word() },
     },
-  }
-}
+  })
 
-export const createValidDisabledInputFixture = (): Required<Custom> => {
-  const baseInputFixture = createBaseInputFixture()
-  baseInputFixture.syncCloudStorage.disabled = true
-  return baseInputFixture
-}
+export const createValidDisabledInputFixture = (): Required<CustomOptions> => ({
+  ...createBaseInputFixture(),
+  syncCloudStorage: {
+    ...createBaseInputFixture().syncCloudStorage,
+    disabled: true,
+  },
+})
 
-export const createValidInputFileFixture = (): Required<Custom> => {
-  const baseInputFixture = createBaseInputFixture()
-  return baseInputFixture
-}
+export const createValidInputFileFixture = (): Required<CustomOptions> =>
+  createBaseInputFixture()
 
 export const createInvalidInputFixture = (
-  additionalProps: DeepPartial<Custom> = {}
+  additionalProps: DeepPartial<CustomOptions> = {}
 ) => ({
   syncCloudStorage: {
     disabled: 'true',

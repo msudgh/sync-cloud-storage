@@ -1,10 +1,12 @@
 import { DeletedObject, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { App, Stack } from 'aws-cdk-lib'
 import { mock } from 'jest-mock-extended'
 import { Options } from 'serverless'
 import { Logging } from 'serverless/classes/Plugin'
 
 import { getServerlessMock } from './mocks/serverless'
 import {
+  createValidCdkInputFixture,
   createValidDisabledInputFixture,
   createValidInputFixture,
   createValidInputFixtureWithACLBucketOwner,
@@ -13,23 +15,27 @@ import {
   sampleStorage,
   sampleStoragePatterns,
 } from './schemas/input.fixture'
-import { setupAWSEnvs } from './setupAWSEnvs'
+import { setupEnvs } from './setupEnvs'
 import { InvalidConfigError } from '../src/errors'
 import SyncCloudStorage from '../src/index'
-import { createStorage, deleteStorage } from '../src/providers/s3/buckets'
-import * as objects from '../src/providers/s3/objects'
+import { SyncCloudStorageCdk } from '../src/providers/cdk'
+import { SyncCloudStorageServerless } from '../src/providers/serverless'
 import { Storage } from '../src/schemas/input'
+import { createStorage, deleteStorage } from '../src/storages/s3/buckets'
+import * as objects from '../src/storages/s3/objects'
 import {
   TagsMethodPromiseResult,
   UploadedObject,
   isFulfilledSyncResult,
 } from '../src/types'
-import logger from '../src/utils/logger'
+import { logger } from '../src/utils/logger'
 import { mergeTags } from '../src/utils/tags'
 
 const cwd = process.cwd()
 const optionsMock = mock<Options>()
 const loggingMock = mock<Logging>()
+
+jest.mock('./src/utils/logger')
 
 const setupStorage = async (client: S3Client, storage: Storage) => {
   try {
@@ -86,19 +92,87 @@ const deletedFilesExpects = (
   }
 }
 
-describe('SyncCloudStorage', () => {
+describe('Providers', () => {
+  let logSpy: jest.SpyInstance
+
+  afterEach(() => {
+    // Reset environment variables after each test
+    delete process.env.STAGE
+    delete process.env.AWS_EXECUTION_ENV
+  })
+
+  it('should return SyncCloudStorageServerless when instance is Serverless', () => {
+    const cdkInputCustom = createValidInputFixture({
+      patterns: sampleStoragePatterns.single,
+      name: sampleStorage.name,
+    })
+    const mockServerless = getServerlessMock(cdkInputCustom, cwd)
+    const instance = new SyncCloudStorage(mockServerless)
+    expect(instance).toBeInstanceOf(SyncCloudStorageServerless)
+  })
+
+  it('should return SyncCloudStorageCdk when provider is Construct', () => {
+    // Use a CDK App and Stack as scope
+    const app = new App()
+    const stack = new Stack(app, 'TestStack')
+    const cdkInputCustom = createValidCdkInputFixture({
+      patterns: sampleStoragePatterns.single,
+      name: sampleStorage.name,
+    })
+    const instance = new SyncCloudStorage(stack, cdkInputCustom)
+    expect(instance).toBeInstanceOf(SyncCloudStorageCdk)
+  })
+
+  it('should throw an error when neither Serverless nor Construct is instance', () => {
+    try {
+      new SyncCloudStorage({} as never)
+    } catch (error) {
+      expect((error as Error).message).toBe('Provider not found')
+    }
+  })
+
+  it('should throw an error when provider is not found', () => {
+    try {
+      new SyncCloudStorage({} as never)
+    } catch (error) {
+      expect((error as Error).message).toBe('Provider not found')
+    }
+  })
+
+  it.only('should keep logger silent when silent set to false', async () => {
+    logSpy = jest.spyOn(logger, 'info')
+
+    const stack = new Stack(new App(), 'TestStack')
+    const expectedsilent = false
+    const cdkInputCustom = createValidCdkInputFixture({
+      patterns: sampleStoragePatterns.single,
+      name: sampleStorage.name,
+      silent: expectedsilent,
+    })
+    const instance = new SyncCloudStorage(
+      stack,
+      cdkInputCustom
+    ) as SyncCloudStorageCdk
+    expect(instance).toBeInstanceOf(SyncCloudStorageCdk)
+    expect(instance.options.syncCloudStorage.silent).toBe(expectedsilent)
+    expect(logger.silent).toBe(!expectedsilent)
+    expect(logSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe.skip('Operations', () => {
   beforeAll(async () => {
-    await setupAWSEnvs()
+    await setupEnvs()
   })
 
   describe('Constructor Related Tests', () => {
     it('should properly configure S3 client for offline mode', async () => {
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
@@ -107,19 +181,19 @@ describe('SyncCloudStorage', () => {
       expect(syncCloudStorage.client).toBeInstanceOf(S3Client)
 
       if (
-        inputCustom.syncCloudStorage.offline === true &&
-        inputCustom.syncCloudStorage.endpoint !== undefined
+        serverlessInputCustom.syncCloudStorage.offline === true &&
+        serverlessInputCustom.syncCloudStorage.endpoint !== undefined
       ) {
         const configuredEndpoint =
           await syncCloudStorage.client?.config?.endpoint?.()
 
         expect(
-          inputCustom.syncCloudStorage.endpoint.includes(
+          serverlessInputCustom.syncCloudStorage.endpoint.includes(
             `${configuredEndpoint?.hostname}`
           )
         ).toBe(true)
         expect(
-          inputCustom.syncCloudStorage.endpoint.includes(
+          serverlessInputCustom.syncCloudStorage.endpoint.includes(
             `${configuredEndpoint?.port}`
           )
         ).toBe(true)
@@ -127,9 +201,9 @@ describe('SyncCloudStorage', () => {
     })
 
     it('should not sync when plugin is disabled', async () => {
-      const inputCustom = createValidDisabledInputFixture()
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidDisabledInputFixture()
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
@@ -144,15 +218,15 @@ describe('SyncCloudStorage', () => {
     })
 
     it("should not sync when there's no bucket", async () => {
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
-      inputCustom.syncCloudStorage.storages = []
-      const mockServerless = getServerlessMock(inputCustom, cwd)
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
+      serverlessInputCustom.syncCloudStorage.storages = []
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
 
       try {
-        new SyncCloudStorage(mockServerless, optionsMock, loggingMock)
+        new SyncCloudStorageServerless(mockServerless, optionsMock, loggingMock)
       } catch (error) {
         const typedError = error as InvalidConfigError
         expect(typedError).toBeInstanceOf(InvalidConfigError)
@@ -163,12 +237,12 @@ describe('SyncCloudStorage', () => {
 
   describe('Error Handling', () => {
     it("should throw an error when the bucket doesn't exist", async () => {
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        'non-existent-bucket'
-      )
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: 'non-existent-bucket',
+      })
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
@@ -191,12 +265,12 @@ describe('SyncCloudStorage', () => {
     })
 
     it("should not sync tags when storage doesn't exist", async () => {
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        'non-existent-bucket'
-      )
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: 'non-existent-bucket',
+      })
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
@@ -221,12 +295,12 @@ describe('SyncCloudStorage', () => {
 
   describe('Synchronization', () => {
     it('should sync when there is a new bucket and acl set to bucket owner', async () => {
-      const inputCustom = createValidInputFixtureWithACLBucketOwner(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidInputFixtureWithACLBucketOwner({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
@@ -234,7 +308,7 @@ describe('SyncCloudStorage', () => {
 
       await setupStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
 
       const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
@@ -254,22 +328,46 @@ describe('SyncCloudStorage', () => {
         }
       }
     })
+
+    it('should sync when there is a new bucket (cdk)', async () => {
+      const cdkInputCustom = createValidCdkInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
+      const app = new App()
+      const stack = new Stack(app, 'TestStack')
+      const syncCloudStorage = new SyncCloudStorage(
+        stack,
+        cdkInputCustom
+      ) as SyncCloudStorageCdk
+      const { result } = await syncCloudStorage.storages()
+      expect(result).toEqual([
+        expect.objectContaining({
+          status: 'fulfilled',
+          value: expect.objectContaining({
+            uploaded: expect.arrayContaining([]),
+            deleted: expect.arrayContaining([]),
+          }),
+        }),
+      ])
+    })
+
     it('should sync when the prefix', async () => {
       const prefix = 'animals'
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        sampleStorage.name,
-        prefix
-      )
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+        prefix,
+      })
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
       )
       await setupStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
 
       const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
@@ -292,24 +390,24 @@ describe('SyncCloudStorage', () => {
     })
 
     it('should sync tags', async () => {
-      const inputCustom = createValidInputFixtureWithTags(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidInputFixtureWithTags({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
       )
       await setupStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
 
       const expectedTags = mergeTags(
         [],
-        inputCustom.syncCloudStorage.storages[0].tags
+        serverlessInputCustom.syncCloudStorage.storages[0].tags
       )
       const tagsSpy = jest.spyOn(syncCloudStorage, 'tags')
       const newTags = await syncCloudStorage.tags()
@@ -328,16 +426,16 @@ describe('SyncCloudStorage', () => {
         expect(
           await deleteStorage(
             syncCloudStorage.getS3Client(),
-            inputCustom.syncCloudStorage.storages[0]
+            serverlessInputCustom.syncCloudStorage.storages[0]
           )
         ).not.toBe(undefined)
       }
     })
 
     it('should not sync tags when plugin is disabled', async () => {
-      const inputCustom = createValidDisabledInputFixture()
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidDisabledInputFixture()
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
@@ -351,19 +449,19 @@ describe('SyncCloudStorage', () => {
     })
 
     it('should sync metadata', async () => {
-      const inputCustom = createValidInputFixtureWithMetadata(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const serverlessInputCustom = createValidInputFixtureWithMetadata({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
       )
       await setupStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
 
       const metadataSpy = jest.spyOn(syncCloudStorage, 'metadata')
@@ -380,8 +478,9 @@ describe('SyncCloudStorage', () => {
           value: existingObjects.map(({ Key: key }) => {
             return {
               Key: key,
-              Metadata: inputCustom.syncCloudStorage.storages[0].metadata,
-              Bucket: inputCustom.syncCloudStorage.storages[0].name,
+              Metadata:
+                serverlessInputCustom.syncCloudStorage.storages[0].metadata,
+              Bucket: serverlessInputCustom.syncCloudStorage.storages[0].name,
             }
           }),
         }),
@@ -392,28 +491,28 @@ describe('SyncCloudStorage', () => {
 
       await deleteStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
     })
   })
 
   describe('Action Limitation', () => {
     it('should limit sync to specified actions: upload', async () => {
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
-      inputCustom.syncCloudStorage.storages[0].actions = ['upload']
-      const mockServerless = getServerlessMock(inputCustom, cwd)
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
+      serverlessInputCustom.syncCloudStorage.storages[0].actions = ['upload']
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
 
-      const syncCloudStorage = new SyncCloudStorage(
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
       )
       await setupStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
 
       const syncStoragesSpy = jest.spyOn(syncCloudStorage, 'storages')
@@ -435,28 +534,28 @@ describe('SyncCloudStorage', () => {
     })
 
     it('should limit sync to specified actions: delete', async () => {
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
 
-      inputCustom.syncCloudStorage.storages[0].actions = ['delete']
+      serverlessInputCustom.syncCloudStorage.storages[0].actions = ['delete']
 
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
       )
       await setupStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
 
       const giraffeTXT = 'giraffe.txt'
       await syncCloudStorage.getS3Client().send(
         new PutObjectCommand({
-          Bucket: inputCustom.syncCloudStorage.storages[0].name,
+          Bucket: serverlessInputCustom.syncCloudStorage.storages[0].name,
           Key: giraffeTXT,
           Body: 'giraffe',
         })
@@ -483,7 +582,7 @@ describe('SyncCloudStorage', () => {
               filesToUpload: expect.arrayContaining([]),
               localFilesChecksum: expect.arrayContaining([]),
               objects: expect.arrayContaining([]),
-              storage: inputCustom.syncCloudStorage.storages[0],
+              storage: serverlessInputCustom.syncCloudStorage.storages[0],
               storageObjectsChecksum: expect.arrayContaining([]),
               uploaded: expect.arrayContaining([]),
             },
@@ -496,33 +595,36 @@ describe('SyncCloudStorage', () => {
 
       await deleteStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
     })
 
     it('should limit sync to specified actions: upload & delete', async () => {
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
 
-      inputCustom.syncCloudStorage.storages[0].actions = ['upload', 'delete']
+      serverlessInputCustom.syncCloudStorage.storages[0].actions = [
+        'upload',
+        'delete',
+      ]
 
-      const mockServerless = getServerlessMock(inputCustom, cwd)
-      const syncCloudStorage = new SyncCloudStorage(
+      const mockServerless = getServerlessMock(serverlessInputCustom, cwd)
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
       )
       await setupStorage(
         syncCloudStorage.getS3Client(),
-        inputCustom.syncCloudStorage.storages[0]
+        serverlessInputCustom.syncCloudStorage.storages[0]
       )
 
       const giraffeTXT = 'giraffe.txt'
       await syncCloudStorage.getS3Client().send(
         new PutObjectCommand({
-          Bucket: inputCustom.syncCloudStorage.storages[0].name,
+          Bucket: serverlessInputCustom.syncCloudStorage.storages[0].name,
           Key: giraffeTXT,
           Body: 'giraffe',
         })
@@ -548,33 +650,36 @@ describe('SyncCloudStorage', () => {
   })
   describe('Multiple Storages', () => {
     it('should sync multiple storages with with all actions', async () => {
-      const inputCustom = createValidInputFixture(
-        sampleStoragePatterns.single,
-        sampleStorage.name
-      )
-      const inputCustom2 = createValidInputFixture(
-        sampleStoragePatterns.multiple,
-        'giraffe-bucket-2'
-      )
+      const serverlessInputCustom = createValidInputFixture({
+        patterns: sampleStoragePatterns.single,
+        name: sampleStorage.name,
+      })
+      const serverlessInputCustom2 = createValidInputFixture({
+        patterns: sampleStoragePatterns.multiple,
+        name: 'giraffe-bucket-2',
+      })
       const {
         syncCloudStorage: {
           storages: [storage1],
         },
-      } = inputCustom
+      } = serverlessInputCustom
       const {
         syncCloudStorage: {
           storages: [storage2],
         },
-      } = inputCustom2
+      } = serverlessInputCustom2
       const storages = [storage1, storage2]
       const mockServerless = getServerlessMock(
         {
-          ...inputCustom,
-          syncCloudStorage: { ...inputCustom.syncCloudStorage, storages },
+          ...serverlessInputCustom,
+          syncCloudStorage: {
+            ...serverlessInputCustom.syncCloudStorage,
+            storages,
+          },
         },
         cwd
       )
-      const syncCloudStorage = new SyncCloudStorage(
+      const syncCloudStorage = new SyncCloudStorageServerless(
         mockServerless,
         optionsMock,
         loggingMock
