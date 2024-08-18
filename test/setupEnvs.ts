@@ -1,6 +1,6 @@
 import { loadSharedConfigFiles } from '@smithy/shared-ini-file-loader'
 
-import logger from '../src/utils/logger'
+import { logger } from '../src/utils/logger'
 
 const defaultProfile = 'default'
 

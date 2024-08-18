@@ -1,9 +1,9 @@
 import { Construct } from 'constructs'
 
-import { BaseSyncCloudStorage } from './base'
+import { BaseProvider } from './base'
 import { ProviderOptions } from '../types'
 
-export class SyncCloudStorageCdk extends BaseSyncCloudStorage {
+export class SyncCloudStorageCdk extends BaseProvider {
   constructor(construct: Construct, options: ProviderOptions) {
     super(options, construct.node.path)
   }

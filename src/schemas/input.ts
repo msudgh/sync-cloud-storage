@@ -30,13 +30,16 @@ const custom = z.object({
   syncCloudStorage: z.object({
     disabled: z.boolean().optional().default(false),
     storages: storages,
-    endpoint: z.string().optional(),
+    endpoint: z
+      .string()
+      .optional()
+      .default(process.env.AWS_ENDPOINT_URL ?? ''),
     offline: z
       .boolean()
       .optional()
       .default(process.env.IS_OFFLINE === 'true'),
     region: z.string().optional(),
-    verbose: z.boolean().optional(),
+    silent: z.boolean().optional(),
   }),
 })
 

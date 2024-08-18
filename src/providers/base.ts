@@ -13,25 +13,24 @@ import {
   SyncResult,
   TagsSyncResults,
 } from '../types'
-import logger from '../utils/logger'
+import { logger } from '../utils/logger'
 
 /**
  * Base Sync Cloud Storage class.
  * @implements ISyncCloudStorage
  */
-export abstract class BaseSyncCloudStorage implements ISyncCloudStorage {
+export abstract class BaseProvider implements ISyncCloudStorage {
   readonly servicePath: string
   readonly options: ProviderOptions
   readonly client: S3Client
   private readonly _storages: Storage[] = []
 
   /**
-   * @class BaseSyncCloudStorage
+   * @class BaseProvider
    * @param {ProviderOptions} options
    * @param {string} servicePath - path as working directory
    */
   constructor(options: ProviderOptions, servicePath: string) {
-    logger.info('Sync Cloud Storage - Initialize')
     this.options = options
     this.servicePath = servicePath
     const validatedConfig = custom.safeParse(options)
@@ -42,6 +41,8 @@ export abstract class BaseSyncCloudStorage implements ISyncCloudStorage {
       throw new InvalidConfigError(error.message, error)
     }
 
+    logger.silent = !this.options.syncCloudStorage.silent
+
     this.client = this.getS3Client()
     this._storages = this.options.syncCloudStorage.storages.filter(
       (bucket) => bucket.enabled
@@ -51,7 +52,7 @@ export abstract class BaseSyncCloudStorage implements ISyncCloudStorage {
   /**
    * Get S3 client.
    * @returns {S3Client}
-   * @memberof SyncCloudStorage
+   * @memberof BaseProvider
    * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
    *
    * @example
@@ -59,7 +60,7 @@ export abstract class BaseSyncCloudStorage implements ISyncCloudStorage {
    */
   getS3Client(): S3Client {
     const endpoint = this.options.syncCloudStorage.offline
-      ? this.options.syncCloudStorage.endpoint ?? process.env.AWS_ENDPOINT_URL
+      ? this.options.syncCloudStorage.endpoint
       : undefined
 
     return new S3Client({ endpoint })
@@ -68,7 +69,7 @@ export abstract class BaseSyncCloudStorage implements ISyncCloudStorage {
   /**
    * Sync storages.
    * @private
-   * @memberof SyncCloudStorage
+   * @memberof BaseProvider
    * @returns {Promise<{ result: SyncResult[] }>}
    * @example
    * const result = await this.storages()
@@ -94,7 +95,7 @@ export abstract class BaseSyncCloudStorage implements ISyncCloudStorage {
   }
   /**
    * Sync metadata.
-   * @memberof SyncCloudStorage
+   * @memberof BaseProvider
    * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
    * @returns {Promise<PromiseSettledResult<SyncMetadataReturn>[]>}
    * @example
@@ -109,7 +110,7 @@ export abstract class BaseSyncCloudStorage implements ISyncCloudStorage {
   /**
    * Sync tags.
    * @private
-   * @memberof SyncCloudStorage
+   * @memberof BaseProvider
    * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
    * @returns {Promise<TagsSyncResults>}
    * @example
@@ -131,7 +132,7 @@ export abstract class BaseSyncCloudStorage implements ISyncCloudStorage {
    * On exit.
    * @private
    * @returns {Promise<void>}
-   * @memberof SyncCloudStorage
+   * @memberof BaseProvider
    *
    * @example
    * await this.onExit()

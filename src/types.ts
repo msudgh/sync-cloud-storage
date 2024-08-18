@@ -113,3 +113,9 @@ export type Provider = IServerless | Construct
 export type ServerlessOptions = Custom
 export type CdkOptions = Custom['syncCloudStorage']
 export type ProviderOptions = Custom
+export interface LogActivity {
+  name: string
+  status: 'fulfilled' | 'rejected'
+  reason?: string
+  result?: unknown
+}

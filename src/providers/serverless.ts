@@ -1,17 +1,16 @@
 import Serverless from 'serverless'
 import ServerlessPlugin from 'serverless/classes/Plugin'
 
-import { BaseSyncCloudStorage } from './base'
+import { BaseProvider } from './base'
 import { IServerless } from '../types'
 
-export class SyncCloudStorageServerless extends BaseSyncCloudStorage {
+export class SyncCloudStorageServerless extends BaseProvider {
   readonly hooks: ServerlessPlugin.Hooks
   readonly commands: ServerlessPlugin.Commands
 
   constructor(
     serverless: IServerless,
-    // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
-    _options: Serverless.Options,
+    options: Serverless.Options,
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
     _logging?: ServerlessPlugin.Logging
   ) {
@@ -21,10 +20,7 @@ export class SyncCloudStorageServerless extends BaseSyncCloudStorage {
           ...serverless.service.custom.syncCloudStorage,
           region:
             serverless.service.custom.syncCloudStorage.region ||
-            _options['region'],
-          verbose:
-            serverless.service.custom.syncCloudStorage.verbose ||
-            _options['verbose'],
+            options['region'],
         },
       },
       serverless.service.serverless.config.servicePath

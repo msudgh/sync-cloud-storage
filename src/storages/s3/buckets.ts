@@ -23,7 +23,7 @@ import {
   TagsSyncResult,
   UploadedObject,
 } from '../../types'
-import logger from '../../utils/logger'
+import { logger } from '../../utils/logger'
 import { getChecksum, getContentType } from '../../utils/objects'
 import { mergeTags } from '../../utils/tags'
 import { getLocalFiles } from '../local/objects'
