@@ -23,7 +23,7 @@
   },
   "scripts": {
     "prepare": "is-ci || husky",
-    "build": "rm -rf ./dist && tsc -p tsconfig.build.json",
+    "build": "pnpm run clean && tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json -w",
     "build:type-check": "tsc -p tsconfig.build.json --noEmit",
     "test": "node --trace-warnings --experimental-vm-modules 'node_modules/jest/bin/jest.js'",
@@ -34,8 +34,9 @@
     "lint:fix": "eslint . --fix",
     "docs:build": "pnpm run build && rm -rf ./docs && ./node_modules/.bin/jsdoc -c jsdoc.json",
     "docs:start": "pnpm run docs:build && ./node_modules/.bin/http-server -c-1 -o docs",
-    "preversion": "pnpm run build && pnpm run format",
-    "cat-code": "cat package.json README.md > scs-code-prompt && find ./src ./test -type f -name '*.ts' -exec cat {} + >> scs-code-prompt"
+    "preversion": "pnpm run lint && pnpm run build && pnpm run format && pnpm run docs:build",
+    "clean": "rm -rf ./dist ./docs",
+    "start": "node dist/esm/index.js"
   },
   "lint-staged": {
     "(/test/.*\\.test\\.ts)$": [
