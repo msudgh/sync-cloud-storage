@@ -35,6 +35,8 @@ const custom = z.object({
       .boolean()
       .optional()
       .default(process.env.IS_OFFLINE === 'true'),
+    region: z.string().optional(),
+    verbose: z.boolean().optional(),
   }),
 })
 

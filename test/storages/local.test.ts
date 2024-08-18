@@ -1,4 +1,4 @@
-import { getLocalFiles } from '../../src/providers/local/objects'
+import { getLocalFiles } from '../../src/storages/local/objects'
 import { createValidInputFixture } from '../schemas/input.fixture'
 
 describe('Local File Provider', () => {

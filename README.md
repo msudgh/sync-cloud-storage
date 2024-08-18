@@ -5,9 +5,14 @@
 [![Codecov Status](https://codecov.io/gh/msudgh/sync-cloud-storage/branch/main/graph/badge.svg?token=2BY6063VOY)](https://codecov.io/gh/msudgh/sync-cloud-storage)
 [![License](https://img.shields.io/github/license/msudgh/sync-cloud-storage)](LICENSE)
 
-Synchronize files and directories between a remote computer and multiple Serverless cloud providers' storages.
+Synchronize files and directories between a remote computer and a cloud storage through cloud formation.
 
-Supported cloud providers:
+Supported cloud formation providers:
+
+- [x] Serverless
+- [x] CDK
+
+Supported cloud storages:
 
 - [x] AWS S3
 
@@ -57,6 +62,33 @@ custom:
       metadata:
         foo: bar
         bar: foo
+```
+
+### CDK
+
+#### AWS S3
+
+```typescript
+import { Stack, App } from '@aws-cdk/core'
+import SyncCloudStorage from 'sync-cloud-storage'
+
+const app = new App()
+const stack = new Stack(app, 'MyStack')
+const syncCloudStorage = new SyncCloudStorage(stack, {
+  storages: [
+    {
+      name: 'my-bucket',
+      patterns: ['assets/*'],
+      actions: ['upload', 'delete'],
+      prefix: 'assets',
+      acl: 'public-read',
+      metadata: {
+        foo: 'bar',
+        bar: 'foo',
+      },
+    },
+  ],
+})
 ```
 
 ## Configuration Reference

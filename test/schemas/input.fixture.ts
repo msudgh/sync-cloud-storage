@@ -69,6 +69,14 @@ export const createValidInputFixture = (
   }
 }
 
+export const createValidCdkInputFixture = (
+  patterns: string[],
+  name = '',
+  prefix = '',
+  endpoint = process.env.AWS_ENDPOINT_URL
+): Custom['syncCloudStorage'] =>
+  createValidInputFixture(patterns, name, prefix, endpoint)['syncCloudStorage']
+
 export const createValidInputFixtureWithACLBucketOwner = (
   patterns: string[],
   name = '',

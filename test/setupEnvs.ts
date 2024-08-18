@@ -8,7 +8,7 @@ const checkEnvVariables = (env: NodeJS.ProcessEnv) => {
   return env.AWS_REGION && env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY
 }
 
-export const setupAWSEnvs = async (): Promise<void> => {
+export const setupEnvs = async (): Promise<void> => {
   const { credentialsFile, configFile } = await loadSharedConfigFiles({
     ignoreCache: true,
   })

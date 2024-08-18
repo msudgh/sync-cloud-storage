@@ -1,4 +1,5 @@
 import { DeletedObject, Tag, _Object } from '@aws-sdk/client-s3'
+import { Construct } from 'constructs'
 import Serverless from 'serverless'
 
 import { Custom, Storage } from './schemas/input'
@@ -69,12 +70,6 @@ export interface MethodReturn<T = undefined> {
   error?: Error | string
 }
 
-export interface MethodReturn<T = undefined> {
-  storage?: Storage
-  result?: T
-  error?: Error | string
-}
-
 export type MetadataSyncResult = Array<boolean>
 export type TagsSyncResult = MethodReturn<Tag[]>
 export type TagsSyncResults = Array<MethodReturn<Tag[]>>
@@ -102,3 +97,19 @@ export type SyncResult = SyncFulfilledResult | SyncRejectedResult
 export const isFulfilledSyncResult = (
   result: SyncResult
 ): result is SyncFulfilledResult => result.status === 'fulfilled'
+
+export type ProviderName = 'serverless' | 'cdk'
+
+export interface ISyncCloudStorage {
+  storages(servicePath: string): Promise<{ result: SyncResult[] }>
+  metadata(): Promise<PromiseSettledResult<SyncMetadataReturn>[]>
+  tags(): Promise<TagsSyncResults>
+  onExit(): Promise<void>
+  disableCheck(): MethodReturn<boolean>
+}
+
+export type Provider = IServerless | Construct
+
+export type ServerlessOptions = Custom
+export type CdkOptions = Custom['syncCloudStorage']
+export type ProviderOptions = Custom
