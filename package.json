@@ -34,7 +34,7 @@
     "lint:fix": "eslint . --fix",
     "docs:build": "pnpm run build && rm -rf ./docs && ./node_modules/.bin/jsdoc -c jsdoc.json",
     "docs:start": "pnpm run docs:build && ./node_modules/.bin/http-server -c-1 -o docs",
-    "preversion": "pnpm run lint && pnpm run build && pnpm run format && pnpm run docs:build",
+    "preversion": "pnpm run lint",
     "clean": "rm -rf ./dist ./docs",
     "start": "node dist/esm/index.js"
   },
