@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        node: [18, 20]
+        os: ['ubuntu-latest']
+        node: [18, lts/*]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v3.0.0
@@ -66,3 +68,9 @@ jobs:
           directory: ./coverage
           files: ./coverage/cobertura-coverage.xml,./coverage/lcov.info
           fail_ci_if_error: true
+      - name: SonarCloud Scan
+        if: matrix.os == 'ubuntu-latest'
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
