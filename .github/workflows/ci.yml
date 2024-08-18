@@ -15,6 +15,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v3.0.0
         with:
           version: 8
@@ -68,9 +70,3 @@ jobs:
           directory: ./coverage
           files: ./coverage/cobertura-coverage.xml,./coverage/lcov.info
           fail_ci_if_error: true
-      - name: SonarCloud Scan
-        if: matrix.os == 'ubuntu-latest'
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
