@@ -6,7 +6,7 @@ import { InvalidConfigError } from '../errors'
 import { Storage, customOptions } from '../schemas/input'
 import { sync, syncMetadata, syncTags } from '../storages/s3/buckets'
 import {
-  ISyncCloudStorage,
+  IBaseProvider,
   MethodReturn,
   ProviderOptions,
   SyncMetadataReturn,
@@ -16,10 +16,10 @@ import {
 import { logger } from '../utils/logger'
 
 /**
- * Base Sync Cloud Storage class.
- * @implements ISyncCloudStorage
+ * Base provider class for cloud frameworks.
+ * @implements {IBaseProvider}
  */
-export abstract class BaseProvider implements ISyncCloudStorage {
+export abstract class BaseProvider implements IBaseProvider {
   readonly servicePath: string
   readonly options: ProviderOptions
   readonly client: S3Client
@@ -51,12 +51,9 @@ export abstract class BaseProvider implements ISyncCloudStorage {
 
   /**
    * Get S3 client.
-   * @returns {S3Client}
    * @memberof BaseProvider
    * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
-   *
-   * @example
-   * const client = this.getS3Client()
+   * @returns {S3Client}
    */
   getS3Client(): S3Client {
     const endpoint = this.options.syncCloudStorage.offline
@@ -72,11 +69,8 @@ export abstract class BaseProvider implements ISyncCloudStorage {
 
   /**
    * Sync storages.
-   * @private
    * @memberof BaseProvider
    * @returns {Promise<{ result: SyncResult[] }>}
-   * @example
-   * const result = await this.storages()
    */
   async storages(): Promise<{ result: SyncResult[] }> {
     const isPluginDisable = this.disableCheck().result
@@ -102,8 +96,6 @@ export abstract class BaseProvider implements ISyncCloudStorage {
    * @memberof BaseProvider
    * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
    * @returns {Promise<PromiseSettledResult<SyncMetadataReturn>[]>}
-   * @example
-   * const result = await this.metadata()
    */
   async metadata(): Promise<PromiseSettledResult<SyncMetadataReturn>[]> {
     return await Promise.allSettled(
@@ -113,12 +105,9 @@ export abstract class BaseProvider implements ISyncCloudStorage {
 
   /**
    * Sync tags.
-   * @private
    * @memberof BaseProvider
    * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3
    * @returns {Promise<TagsSyncResults>}
-   * @example
-   * const result = await this.tags()
    */
   async tags(): Promise<TagsSyncResults> {
     const isPluginDisable = this.disableCheck().result
@@ -137,11 +126,8 @@ export abstract class BaseProvider implements ISyncCloudStorage {
    * @private
    * @returns {Promise<void>}
    * @memberof BaseProvider
-   *
-   * @example
-   * await this.onExit()
    */
-  async onExit(): Promise<void> {
+  private async onExit(): Promise<void> {
     if (this.client) {
       this.client.destroy()
     }
@@ -149,9 +135,11 @@ export abstract class BaseProvider implements ISyncCloudStorage {
 
   /**
    * Check if the plugin is disabled.
+   * @private
+   * @memberof BaseProvider
    * @returns {MethodReturn<boolean>}
    */
-  disableCheck(): MethodReturn<boolean> {
+  private disableCheck(): MethodReturn<boolean> {
     if (this.options.syncCloudStorage.disabled) {
       logger.warning('SyncCloudStorage is disabled!')
       return { result: true }

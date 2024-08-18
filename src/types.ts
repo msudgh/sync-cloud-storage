@@ -100,12 +100,10 @@ export const isFulfilledSyncResult = (
 
 export type ProviderName = 'serverless' | 'cdk'
 
-export interface ISyncCloudStorage {
+export interface IBaseProvider {
   storages(servicePath: string): Promise<{ result: SyncResult[] }>
   metadata(): Promise<PromiseSettledResult<SyncMetadataReturn>[]>
   tags(): Promise<TagsSyncResults>
-  onExit(): Promise<void>
-  disableCheck(): MethodReturn<boolean>
 }
 
 export type Provider = IServerless | Construct
