@@ -43,41 +43,45 @@
 
 
     <section>
-        <article><h1>Sync Cloud Storage</h1>
+        <article><h1>sync-cloud-storage</h1>
 <p><a href="https://www.npmjs.com/package/sync-cloud-storage"><img src="https://img.shields.io/npm/v/sync-cloud-storage" alt="NPM"></a>
 <a href="./.github/workflows/ci.yml"><img src="https://github.com/msudgh/sync-cloud-storage/actions/workflows/ci.yml/badge.svg?branch=main" alt="Pipeline Status"></a>
 <a href="https://codecov.io/gh/msudgh/sync-cloud-storage"><img src="https://codecov.io/gh/msudgh/sync-cloud-storage/branch/main/graph/badge.svg?token=2BY6063VOY" alt="Codecov Status"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/msudgh/sync-cloud-storage" alt="License"></a></p>
-<p>A simple way to sync folders &amp; files between a remote machine and a cloud provider's storage.</p>
-<p>Available for following cloud frameworks:</p>
+<p>Synchronize files and directories between a remote machine and a cloud storage via cloud frameworks and stacks consisting of <a href="https://www.serverless.com/">AWS SAM (Serverless)</a> and <a href="https://aws.amazon.com/cdk/">AWS Cloud Development Kit (CDK)</a>. This package supports the following cloud storage providers: <a href="https://aws.amazon.com/s3/">AWS S3</a>.</p>
+<h2>Features</h2>
 <ul>
-<li><a href="https://serverless.com/">Serverless</a></li>
+<li>Sync multiple storages at once and flexible file matching (single or multiple file/dir sync) by defining patterns of <a href="https://en.wikipedia.org/wiki/Glob_(programming)"><code>glob</code></a> to include or exclude</li>
+<li>Supports a set of options as following for each file based on storage: <code>Prefix</code>, <code>Access Control List (ACL)</code>, <code>Tags</code>, <code>Metadata</code></li>
+<li>Select a list of specific sync actions for each storage: <code>uploading</code>, <code>deleting</code></li>
+<li>Modern and uses the latest official cloud provider's SDK
+<ul>
+<li>AWS S3: <a href="https://www.npmjs.com/package/@aws-sdk/client-s3"><code>aws-sdk@3.x</code></a></li>
+</ul>
+</li>
 </ul>
 <blockquote>
 <p><strong>Note</strong>: This plugin is still in development and may not be stable. Use with caution.</p>
 </blockquote>
 <h2>Installation</h2>
-<ol>
-<li><a href="https://github.com/antfu/ni"><strong>ni</strong></a>: <code>ni sync-cloud-storage -D</code></li>
-<li><a href="https://npmjs.com/"><strong>npm</strong></a>: <code>npm i sync-cloud-storage -D</code></li>
-<li><a href="https://yarnpkg.com/"><strong>yarn</strong></a>: <code>yarn add sync-cloud-storage -D</code></li>
-<li><a href="https://pnpm.io/"><strong>pnpm</strong></a>: <code>pnpm add sync-cloud-storage -D</code></li>
-</ol>
-<h2>Why</h2>
 <ul>
-<li>Uses the latest official cloud provider's SDK.</li>
-<li>Sync multiple storages at once.</li>
-<li>Sync tags and metadata of each storage.</li>
+<li><a href="https://npmjs.com/"><strong>npm</strong></a>: <code>npm i sync-cloud-storage</code></li>
+<li><a href="https://yarnpkg.com/"><strong>yarn</strong></a>: <code>yarn add sync-cloud-storage</code></li>
+<li><a href="https://pnpm.io/"><strong>pnpm</strong></a>: <code>pnpm add sync-cloud-storage</code></li>
+<li><a href="https://github.com/antfu/ni"><strong>ni</strong></a>: <code>ni sync-cloud-storage</code></li>
 </ul>
 <h2>Usage</h2>
-<h3>Serverless</h3>
+<h3>AWS S3</h3>
+<h4>Serverless</h4>
+<p>Sync storages action as a pre-deploy hook in the <code>serverless.yml</code>:</p>
 <pre class="prettyprint source lang-yaml"><code>plugins:
   - sync-cloud-storage
 
 custom:
   syncCloudStorage:
     - name: my-bucket
-      localPath: ./assets
+      patterns:
+        - assets/*
       actions:
         - upload
         - delete
@@ -86,7 +90,180 @@ custom:
       metadata:
         foo: bar
         bar: foo
-</code></pre></article>
+</code></pre>
+<h4>CDK</h4>
+<p>Call sync storages action after setting up a CDK App:</p>
+<pre class="prettyprint source lang-typescript"><code>import { Stack, App } from '@aws-cdk/core'
+import SyncCloudStorage from 'sync-cloud-storage'
+
+const app = new App()
+const stack = new Stack(app, 'MyStack')
+const syncCloudStorage = new SyncCloudStorage(stack, {
+  storages: [
+    {
+      name: 'my-bucket',
+      patterns: ['assets/*'],
+      actions: ['upload', 'delete'],
+      prefix: 'assets',
+      acl: 'public-read',
+      metadata: {
+        foo: 'bar',
+        bar: 'foo',
+      },
+    },
+  ],
+})
+
+// Sync storages
+syncCloudStorage.storages()
+
+// Sync tags
+syncCloudStorage.tags()
+
+// Sync metadata
+syncCloudStorage.metadata()
+</code></pre>
+<h2>Options</h2>
+<h3>General</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Notes</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>storages</td>
+<td>List of storages, Minimum items: 1</td>
+<td><code>array</code> of <a href="#storage"><code>storage</code></a></td>
+<td>true</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>region</td>
+<td>Cloud (AWS) region</td>
+<td><code>string</code></td>
+<td>false</td>
+<td>undefined or <code>AWS_REGION</code> environment variable</td>
+</tr>
+<tr>
+<td>endpoint</td>
+<td>Cloud (AWS) Endpoint URL</td>
+<td><code>string</code></td>
+<td>false</td>
+<td>undefined or <code>AWS_ENDPOINT_URL</code> environment variable</td>
+</tr>
+<tr>
+<td>offline</td>
+<td>Offline mode</td>
+<td><code>boolean</code></td>
+<td>false</td>
+<td>false or <code>IS_OFFLINE</code> environment variable</td>
+</tr>
+<tr>
+<td>disabled</td>
+<td>Disable sync</td>
+<td><code>boolean</code></td>
+<td>false</td>
+<td>false</td>
+</tr>
+<tr>
+<td>silent</td>
+<td>Silent output logs</td>
+<td><code>boolean</code></td>
+<td>false</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
+<h3>Storage</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Notes</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td>Name of storage (AWS S3 Bucket), Minimum length: 1</td>
+<td><code>string</code></td>
+<td>true</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>patterns</td>
+<td>Patterns of <a href="https://en.wikipedia.org/wiki/Glob_(programming)"><code>glob</code></a> paths to include or exclude on sync action, Minimum items: 1</td>
+<td><code>array</code> of <code>string</code></td>
+<td>true</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>actions</td>
+<td>Sync actions, Valid values: <code>upload</code>, <code>delete</code></td>
+<td><code>array</code> of <code>string</code></td>
+<td>false</td>
+<td><code>upload</code>, <code>delete</code></td>
+</tr>
+<tr>
+<td>prefix</td>
+<td>Prefix for the storage files and folders</td>
+<td><code>string</code></td>
+<td>false</td>
+<td><code>''</code></td>
+</tr>
+<tr>
+<td>enabled</td>
+<td>Enable or disable the storage on sync action</td>
+<td><code>boolean</code></td>
+<td>false</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td>acl</td>
+<td><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl">AWS S3 Canned ACL</a>, Valid values: <code>private</code>, <code>public-read</code>, <code>public-read-write</code>, <code>authenticated-read</code></td>
+<td><code>string</code></td>
+<td>false</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>metadata</td>
+<td>A set of metadata key/value pair to be set or unset on the object</td>
+<td><code>object</code></td>
+<td>false</td>
+<td>undefined</td>
+</tr>
+<tr>
+<td>tags</td>
+<td>A set of tag key/value pair to be set or unset on the object</td>
+<td><code>object</code></td>
+<td>false</td>
+<td><code>{}</code></td>
+</tr>
+<tr>
+<td>gitignore</td>
+<td>Use .gitignore file to exclude files and directories</td>
+<td><code>boolean</code></td>
+<td>false</td>
+<td>false</td>
+</tr>
+<tr>
+<td>ignoreFiles</td>
+<td>Ignore files and directories to exclude from sync action</td>
+<td><code>array</code> of <code>string</code></td>
+<td>false</td>
+<td>undefined</td>
+</tr>
+</tbody>
+</table></article>
     </section>
 
 
@@ -97,13 +274,13 @@ custom:
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Classes</h3><ul><li><a href="module-SyncCloudStorage-SyncCloudStorage.html">SyncCloudStorage</a></li></ul><h3>Global</h3><ul><li><a href="global.html#getContentType">getContentType</a></li></ul>
+    <h2><a href="index.html">Home</a></h2>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sat Feb 10 2024 14:54:25 GMT+0100 (Central European Standard Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Sun Aug 18 2024 20:02:56 GMT+0200 (Central European Summer Time)
 </footer>
 
 <script> prettyPrint(); </script>

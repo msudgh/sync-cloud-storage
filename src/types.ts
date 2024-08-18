@@ -1,39 +1,40 @@
 import { DeletedObject, Tag, _Object } from '@aws-sdk/client-s3'
+import { Construct } from 'constructs'
 import Serverless from 'serverless'
 
-import { Custom, Storage } from './schemas/input'
+import { CustomOptions, Storage } from './schemas/input'
 
-export type IServerlessProvider = ReturnType<
-  typeof Serverless.prototype.getProvider
->
+export type AWSProvider = ReturnType<typeof Serverless.prototype.getProvider>
 
+// Instance definition of AWS Serverless with the the custom options.
 export type IServerless = {
   service: {
-    custom: Custom
+    custom: CustomOptions
     serverless: {
       config: {
         servicePath: string
       }
     }
   }
-  getProvider(name: string): IServerlessProvider
+  getProvider(name: string): AWSProvider
 }
 
-export interface ExtendedServerlessProvider extends IServerlessProvider {
-  cachedCredentials?: {
-    accessKeyId?: string
-    secretAccessKey?: string
-    sessionToken?: string
-    region?: string
-  }
+export interface IBaseProvider {
+  storages(servicePath: string): Promise<{ result: SyncResult[] }>
+  metadata(): Promise<PromiseSettledResult<SyncMetadataReturn>[]>
+  tags(): Promise<TagsSyncResults>
 }
 
+export type Provider = IServerless | Construct
+export type CdkOptions = CustomOptions['syncCloudStorage']
+export type ProviderOptions = CustomOptions
 export type LocalFile = {
-  Key: string
-  ETag: string
-  Size: number
-  LastModified: Date
-  LocalPath: string
+  fileName: string
+  localPath: string
+  key: string
+  etag?: string
+  size?: number
+  lastModified?: Date
 }
 
 export type UploadedObject = {
@@ -58,16 +59,6 @@ export type StoragesSyncResult = {
   metadata?: Record<string, string>
 }
 
-export type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
-}
-
-export interface MethodReturn<T = undefined> {
-  storage?: Storage
-  result?: T
-  error?: Error | string
-}
-
 export interface MethodReturn<T = undefined> {
   storage?: Storage
   result?: T
@@ -85,3 +76,33 @@ export type SyncMetadataReturn = Array<
     Metadata: Record<string, string> | undefined
   }
 >
+
+interface SyncFulfilledResult {
+  status: 'fulfilled'
+  value: StoragesSyncResult
+}
+
+interface SyncRejectedResult {
+  status: 'rejected'
+  reason: unknown
+}
+
+export type SyncResult = SyncFulfilledResult | SyncRejectedResult
+
+// Testing utilities and types
+export interface ExtendedServerlessProvider extends AWSProvider {
+  cachedCredentials?: {
+    accessKeyId?: string
+    secretAccessKey?: string
+    sessionToken?: string
+    region?: string
+  }
+}
+
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
+}
+
+export const isFulfilledSyncResult = (
+  result: SyncResult
+): result is SyncFulfilledResult => result.status === 'fulfilled'
