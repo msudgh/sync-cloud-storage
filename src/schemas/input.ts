@@ -26,7 +26,7 @@ const storage = z.object({
 
 const storages = z.array(storage).min(1)
 
-const custom = z.object({
+const customOptions = z.object({
   syncCloudStorage: z.object({
     disabled: z.boolean().optional().default(false),
     storages: storages,
@@ -43,9 +43,9 @@ const custom = z.object({
   }),
 })
 
-type Custom = z.infer<typeof custom>
+type CustomOptions = z.infer<typeof customOptions>
 type Storage = z.infer<typeof storage>
 type Tags = z.infer<typeof tags>
 
-export type { Custom, Storage, Tags }
-export { custom, tags, storage, storages, objectCannedACLs }
+export type { CustomOptions, Storage, Tags }
+export { customOptions, tags, storage, storages, objectCannedACLs }

@@ -2,7 +2,7 @@ import { DeletedObject, Tag, _Object } from '@aws-sdk/client-s3'
 import { Construct } from 'constructs'
 import Serverless from 'serverless'
 
-import { Custom, Storage } from './schemas/input'
+import { CustomOptions, Storage } from './schemas/input'
 
 export type IServerlessProvider = ReturnType<
   typeof Serverless.prototype.getProvider
@@ -10,7 +10,7 @@ export type IServerlessProvider = ReturnType<
 
 export type IServerless = {
   service: {
-    custom: Custom
+    custom: CustomOptions
     serverless: {
       config: {
         servicePath: string
@@ -110,9 +110,9 @@ export interface ISyncCloudStorage {
 
 export type Provider = IServerless | Construct
 
-export type ServerlessOptions = Custom
-export type CdkOptions = Custom['syncCloudStorage']
-export type ProviderOptions = Custom
+export type ServerlessOptions = CustomOptions
+export type CdkOptions = CustomOptions['syncCloudStorage']
+export type ProviderOptions = CustomOptions
 export interface LogActivity {
   name: string
   status: 'fulfilled' | 'rejected'

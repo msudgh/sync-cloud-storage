@@ -14,13 +14,12 @@ export class SyncCloudStorageServerless extends BaseProvider {
     // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
     _logging?: ServerlessPlugin.Logging
   ) {
+    const pluginOptions = serverless.service.custom.syncCloudStorage
     super(
       {
         syncCloudStorage: {
-          ...serverless.service.custom.syncCloudStorage,
-          region:
-            serverless.service.custom.syncCloudStorage.region ||
-            options['region'],
+          ...pluginOptions,
+          region: options['region'] || pluginOptions.region,
         },
       },
       serverless.service.serverless.config.servicePath

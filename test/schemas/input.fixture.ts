@@ -1,6 +1,10 @@
 import { faker } from '@faker-js/faker'
 
-import { Custom, Storage, objectCannedACLs } from '../../src/schemas/input'
+import {
+  CustomOptions,
+  Storage,
+  objectCannedACLs,
+} from '../../src/schemas/input'
 import { DeepPartial } from '../../src/types'
 
 export const sampleStoragePatterns = {
@@ -33,7 +37,7 @@ const generateStorage = (overrides: Partial<Storage> = {}): Storage => ({
   ...overrides,
 })
 
-const createBaseInputFixture = (): Required<Custom> => ({
+const createBaseInputFixture = (): Required<CustomOptions> => ({
   syncCloudStorage: {
     disabled: faker.datatype.boolean(),
     storages: [generateStorage()],
@@ -62,7 +66,7 @@ const createCustomInputFixture = ({
   region = process.env.AWS_REGION || '',
   silent = false,
   storageOverrides = {},
-}: FixtureOptions = {}): Custom => ({
+}: FixtureOptions = {}): CustomOptions => ({
   syncCloudStorage: {
     disabled: false,
     endpoint,
@@ -81,17 +85,18 @@ const createCustomInputFixture = ({
   },
 })
 
-export const createValidInputFixture = (options: FixtureOptions = {}): Custom =>
-  createCustomInputFixture(options)
+export const createValidInputFixture = (
+  options: FixtureOptions = {}
+): CustomOptions => createCustomInputFixture(options)
 
 export const createValidCdkInputFixture = (
   options: FixtureOptions = {}
-): Custom['syncCloudStorage'] =>
+): CustomOptions['syncCloudStorage'] =>
   createValidInputFixture(options).syncCloudStorage
 
 export const createValidInputFixtureWithACLBucketOwner = (
   options: FixtureOptions = {}
-): Required<Custom> =>
+): Required<CustomOptions> =>
   createCustomInputFixture({
     ...options,
     storageOverrides: {
@@ -102,7 +107,7 @@ export const createValidInputFixtureWithACLBucketOwner = (
 
 export const createValidInputFixtureWithTags = (
   options: FixtureOptions = {}
-): Required<Custom> =>
+): Required<CustomOptions> =>
   createCustomInputFixture({
     ...options,
     storageOverrides: {
@@ -113,7 +118,7 @@ export const createValidInputFixtureWithTags = (
 
 export const createValidInputFixtureWithMetadata = (
   options: FixtureOptions = {}
-): Required<Custom> =>
+): Required<CustomOptions> =>
   createCustomInputFixture({
     ...options,
     storageOverrides: {
@@ -122,7 +127,7 @@ export const createValidInputFixtureWithMetadata = (
     },
   })
 
-export const createValidDisabledInputFixture = (): Required<Custom> => ({
+export const createValidDisabledInputFixture = (): Required<CustomOptions> => ({
   ...createBaseInputFixture(),
   syncCloudStorage: {
     ...createBaseInputFixture().syncCloudStorage,
@@ -130,11 +135,11 @@ export const createValidDisabledInputFixture = (): Required<Custom> => ({
   },
 })
 
-export const createValidInputFileFixture = (): Required<Custom> =>
+export const createValidInputFileFixture = (): Required<CustomOptions> =>
   createBaseInputFixture()
 
 export const createInvalidInputFixture = (
-  additionalProps: DeepPartial<Custom> = {}
+  additionalProps: DeepPartial<CustomOptions> = {}
 ) => ({
   syncCloudStorage: {
     disabled: 'true',

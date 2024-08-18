@@ -1,4 +1,4 @@
-import { Custom } from '../../src/schemas/input'
+import { CustomOptions } from '../../src/schemas/input'
 import { IServerless } from '../../src/types'
 
 const serverlessGetProviderSpy = jest.fn().mockReturnValue({
@@ -10,7 +10,7 @@ const serverlessGetProviderSpy = jest.fn().mockReturnValue({
 })
 
 export const getServerlessMock = (
-  inputCustom: Custom,
+  inputCustom: CustomOptions,
   servicePath: string
 ): IServerless => ({
   service: {

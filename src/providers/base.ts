@@ -3,7 +3,7 @@
 import { S3Client } from '@aws-sdk/client-s3'
 
 import { InvalidConfigError } from '../errors'
-import { Storage, custom } from '../schemas/input'
+import { Storage, customOptions } from '../schemas/input'
 import { sync, syncMetadata, syncTags } from '../storages/s3/buckets'
 import {
   ISyncCloudStorage,
@@ -33,7 +33,7 @@ export abstract class BaseProvider implements ISyncCloudStorage {
   constructor(options: ProviderOptions, servicePath: string) {
     this.options = options
     this.servicePath = servicePath
-    const validatedConfig = custom.safeParse(options)
+    const validatedConfig = customOptions.safeParse(options)
     const { success } = validatedConfig
 
     if (!success) {
@@ -62,8 +62,12 @@ export abstract class BaseProvider implements ISyncCloudStorage {
     const endpoint = this.options.syncCloudStorage.offline
       ? this.options.syncCloudStorage.endpoint
       : undefined
-
-    return new S3Client({ endpoint })
+    const region =
+      this.options.syncCloudStorage.region ?? process.env.AWS_REGION
+    return new S3Client({
+      endpoint,
+      ...(region ? { region } : {}),
+    })
   }
 
   /**
