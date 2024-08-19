@@ -57,6 +57,7 @@ export class SyncCloudStorageServerless extends BaseProvider {
     return {
       'scs:storages': () => this.storages(),
       'scs:tags': () => this.tags(),
+      'scs:metadata': () => this.metadata(),
       'before:offline:start:init': () => this.storages(),
       'before:deploy:deploy': () => this.storages(),
     }

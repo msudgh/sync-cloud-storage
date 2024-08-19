@@ -37,7 +37,10 @@ export const storageExists = async (
 }
 
 /**
- * Syncs storage with upload and delete actions by comparing local file and storage's object `${Key}-${ETag}`.
+ * Syncs storage with upload and delete actions
+ * by comparing local file and storage's object `${Key}-${ETag}`.
+ *
+ * In case of defining metadata and tags, it will be synced.
  * @memberof S3
  * @param {S3Client} client
  * @param {Storage} storage
@@ -92,6 +95,11 @@ export const sync = async (
     deleted = await deleteObjects(client, storage, objectsToDelete)
   }
 
+  const metadataResult =
+    storage.metadata && (await syncMetadata(client, storage))
+
+  const tagsResult = storage.tags && (await syncTags(client, storage))
+
   const result: StoragesSyncResult = {
     storage,
     files,
@@ -102,6 +110,8 @@ export const sync = async (
     filesToDelete,
     uploaded,
     deleted,
+    metadata: metadataResult,
+    tags: tagsResult,
   }
 
   return result
@@ -203,7 +213,7 @@ export const syncTags = async (
       }
     }
 
-    const mergedTagSet = mergeTags(existingTagSet.TagSet, storage.tags)
+    const mergedTagSet = mergeTags(existingTagSet.TagSet, storage.tags ?? {})
 
     await client.send(
       new PutBucketTaggingCommand({

@@ -38,7 +38,7 @@ const storage = z.object({
     ),
   tags: z
     .record(z.string(), z.string())
-    .default({})
+    .optional()
     .describe('A set of tag key/value pair to be set or unset on the object'),
   gitignore: z
     .boolean()
