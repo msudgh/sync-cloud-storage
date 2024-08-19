@@ -28,8 +28,7 @@ sync-cloud-storage is a Node.js package designed to seamlessly synchronize files
 
 #### Serverless
 
-The integration is powered by Serverless hooks to sync storages, tags, and metadata.
-In below, the default configured hooks are listed:
+The integration is powered by Serverless hooks and In below, the default configured hooks are listed:
 
 - scs:storages -> As a CLI command for serverless
 - scs:tags -> As a CLI command for serverless
@@ -65,7 +64,7 @@ custom:
 
 #### CDK
 
-Call sync storages action after setting up a CDK App:
+Call `storages` action to sync after setting up a CDK App and Stack:
 
 ```typescript
 import { Stack, App } from '@aws-cdk/core'
@@ -89,12 +88,7 @@ const syncCloudStorage = new SyncCloudStorage(stack, {
   ],
 })
 
-// Sync storages
 syncCloudStorage.storages()
-// Sync tags
-syncCloudStorage.tags()
-// Sync metadata
-syncCloudStorage.metadata()
 ```
 
 ## Options
