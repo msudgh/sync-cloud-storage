@@ -407,7 +407,7 @@ describe.skip('Operations', () => {
 
       const expectedTags = mergeTags(
         [],
-        serverlessInputCustom.syncCloudStorage.storages[0].tags
+        serverlessInputCustom.syncCloudStorage.storages[0].tags ?? {}
       )
       const tagsSpy = jest.spyOn(syncCloudStorage, 'tags')
       const newTags = await syncCloudStorage.tags()
