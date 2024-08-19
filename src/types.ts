@@ -56,7 +56,8 @@ export type StoragesSyncResult = {
   uploaded: UploadedObject[]
   deleted: DeletedObject[]
   error?: string | Error
-  metadata?: Record<string, string>
+  metadata?: SyncMetadataReturn
+  tags?: TagsSyncResult
 }
 
 export interface MethodReturn<T = undefined> {

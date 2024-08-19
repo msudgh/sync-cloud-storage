@@ -10,9 +10,13 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        node: [18, 20]
+        os: ['ubuntu-latest']
+        node: [18, lts/*]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v3.0.0
         with:
           version: 8

@@ -1,6 +1,6 @@
 {
   "name": "sync-cloud-storage",
-  "version": "1.0.0-rc.4",
+  "version": "1.0.0-rc.5",
   "license": "MIT",
   "type": "module",
   "main": "dist/esm/index.js",
@@ -16,7 +16,9 @@
     "bucket",
     "serverless",
     "aws",
-    "s3"
+    "s3",
+    "cdk",
+    "cloudformation"
   ],
   "engines": {
     "node": ">=18.x"
@@ -80,7 +82,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.511.0",
     "@aws-sdk/lib-storage": "3.511.0",
-    "globby": "^14.0.1",
+    "globby": "^14.0.2",
     "mrmime": "2.0.0",
     "winston": "^3.11.0",
     "zod": "3.23.8"
