@@ -16,7 +16,9 @@
     "bucket",
     "serverless",
     "aws",
-    "s3"
+    "s3",
+    "cdk",
+    "cloudformation"
   ],
   "engines": {
     "node": ">=18.x"
